@@ -1,0 +1,12 @@
+## Data-specific ##
+poses/
+dataset/3dpeople/*
+!dataset/3dpeople/train.txt
+
+
+## PyTorch-specific ##
+checkpoint/
+
+
+## Python-specific ##
+__pycache__/
