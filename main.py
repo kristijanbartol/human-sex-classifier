@@ -24,7 +24,7 @@ from src.data import ThreeDPeopleDataset, ToTensor, \
         NumViewsReductionTransformation, H36MDataset
 
 
-def train(train_loader, model, criterion, optimizer, num_kpts=17,
+def train(train_loader, model, criterion, optimizer, num_kpts=15,
           lr_init=None, lr_now=None, glob_step=None, lr_decay=None, gamma=None,
           max_norm=True):
         losses = utils.AverageMeter()
@@ -59,15 +59,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=17,
             outputs = outputs.data.cpu().numpy()
             targets = targets.data.cpu().numpy()
 
-            sqerr = (outputs - targets) ** 2
-
-            # NOTE: sqerr.shape[0] is batch dimensions.
-            distance = np.zeros((sqerr.shape[0], num_kpts))
-            dist_idx = 0
-            for k in np.arange(0, num_kpts * 3, 3):
-                distance[:, dist_idx] = np.sqrt(np.sum(sqerr[:, k:k + 3], axis=1))
-                dist_idx += 1
-            all_dist.append(distance)
+            err = outputs - targets
 
             # update summary
             if (i + 1) % 100 == 0:
@@ -82,14 +74,10 @@ def train(train_loader, model, criterion, optimizer, num_kpts=17,
                         eta=bar.eta_td,
                         loss=losses.avg)
             bar.next()
-
         bar.finish()
 
-        all_dist = np.vstack(all_dist)
-        ttl_err = np.mean(all_dist)
-
+        ttl_err = np.mean(err)
         print (">>> train error: {} <<<".format(ttl_err))
-
         return glob_step, lr_now, losses.avg, ttl_err
 
 
@@ -187,8 +175,7 @@ def main(opt):
 
     # create model
     print(">>> creating model")
-    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_kpts * 3)
-    #model = ResNet(Bottleneck, [2, 2, 2, 2], num_classes=51, groups=2)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=2)
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
@@ -215,35 +202,22 @@ def main(opt):
         
     transforms = [
             ToTensor(), 
-#            NumViewsReductionTransformation(opt.epochs, opt.num_views)
-        ]
+    ]
 
-    if opt.dataset == '3dpeople':
-        dataset_classes = [ThreeDPeopleDataset]
-    elif opt.dataset == 'h36m':
-        dataset_classes = [H36MDataset]
-    else:
-        dataset_classes = [ThreeDPeopleDataset, H36MDataset]
-
-    train_datasets = []
-    for dataset_class in dataset_classes:
-        train_datasets.append(dataset_class(num_views=opt.num_views, 
-            num_kpts=opt.num_kpts, transforms=transforms, 
-            data_type='train', mode=opt.data_mode))
-    train_dataset = ConcatDataset(train_datasets)
+    train_dataset = GenderDataset(
+            num_kpts=opt.num_kpts, 
+            transforms=transforms, 
+            data_type='train')
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
 
-    if opt.test_set == '3dpeople':
-        test_dataset = ThreeDPeopleDataset(num_views=opt.num_views,
-            num_kpts=opt.num_kpts, transforms=transforms, 
-            data_type='test', mode=opt.data_mode)
-    else:
-        test_dataset = H36MDataset(num_views=opt.num_views,
-            num_kpts=opt.num_kpts, transforms=transforms,
-            data_type='test', mode=opt.data_mode)
+    test_dataset = GenderDataset(
+            num_kpts=opt.num_kpts, 
+            transforms=transforms, 
+            data_type='test')
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         shuffle=True, num_workers=opt.job)
+
     if opt.test:
         loss_test, err_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts, inference=True)
         sys.exit()
@@ -252,8 +226,6 @@ def main(opt):
 
     for epoch in range(start_epoch, opt.epochs):
         # These epochs are set to decrease the num
-        train_dataset.epoch = epoch
-        test_dataset.epoch = epoch
         torch.cuda.empty_cache()
         print('==========================')
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))

@@ -21,7 +21,7 @@ def move_to_origin(data_3d):
     return data_3d
 
 
-def prepare_gender(rootdir):
+def prepare_gender(rootdir, train_ratio=0.8):
 
     def get_gender(subject_dir):
         with open(os.path.join(subject_dir, 'params.json')) as fjson:
@@ -29,9 +29,16 @@ def prepare_gender(rootdir):
             return params['gender']
 
     P = generate_uniform_projection_matrices(1)[0]
-    X = []
-    Y = []
+    train_X = []
+    train_Y = []
+    test_X  = []
+    test_Y  = []
+
     gt_dir = os.path.join(rootdir, 'gt/')
+    subject_dirs = [x for x os.listdir(gt_dir) if 'male' in x]
+    num_dirs_per_gender = len(subject_dirs) / 2
+    max_dir_idx = int(train_ratio * num_dirs_per_gender)
+
     for subject_dirname in os.listdir(gt_dir):
         subject_dir = os.path.join(gt_dir, subject_dirname)
         y = [0., 0.]
@@ -40,8 +47,12 @@ def prepare_gender(rootdir):
             pose_path = os.path.join(subject_dir, pose_name)
             pose_3d = np.load(pose_path)
             pose_2d = project(pose_3d, P)
-            X.append(pose_2d)
-            Y.append(y)
+            if int(subject_dirname[-4:]) < max_dir_idx:
+                train_X.append(pose_2d)
+                train_Y.append(y)
+            else:
+                test_X.append(pose_2d)
+                test_Y.append(y)
 
     X = np.array(X, dtype=np.float32)
     Y = np.array(Y, dtype=np.float32)
