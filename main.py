@@ -55,6 +55,10 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15,
         if max_norm:
             nn.utils.clip_grad_norm(model.parameters(), max_norm=1)
         optimizer.step()
+        
+        # Set outputs to [0, 1].
+        softmax = nn.Softmax()
+        outputs = softmax(outputs)
 
         outputs = outputs.data.cpu().numpy()
         targets = one_hot(targets.data.cpu().numpy())
