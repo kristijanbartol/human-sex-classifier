@@ -39,13 +39,12 @@ class GenderDataset(Dataset):
         self.transforms = transforms
         self.data_type = data_type
 
+        print('>>> loading {} data'.format(data_type))
         self.Y = np.load('./dataset/gender/{}_Y.npy'.format(data_type))
         self.X = np.load('./dataset/gender/{}_X.npy'.format(data_type))
-        self.num_samples = self.Y.shape[0]
-
-        print('>>> loading {} data'.format(data_type))
-
         self.X = np.swapaxes(self.X, 1, 3)
+
+        self.num_samples = self.Y.shape[0]
 
     def __len__(self):
         return self.num_samples
@@ -56,5 +55,4 @@ class GenderDataset(Dataset):
             for transform in self.transforms:
                 transform(sample)
         return sample
-
 

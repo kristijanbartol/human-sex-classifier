@@ -11,6 +11,12 @@ from random import random
 from const import H, W, PELVIS, RADIUS, K
 
 
+def one_hot(labels):
+    oh_labels = np.zeros((labels.size, labels.max() + 1))
+    oh_labels[np.arange(labels.size), labels] = 1.
+    return oh_labels
+
+
 def rot_from_euler(x, y, z):
     cosx = torch.cos(torch.deg2rad(x))
     #cosx = torch.cos(x)

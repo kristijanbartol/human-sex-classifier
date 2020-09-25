@@ -46,7 +46,6 @@ class Options:
         #                     Model options
         # ===============================================================
         self.parser.add_argument('--max_norm',       dest='max_norm', action='store_true', help='maxnorm constraint to weights')
-        self.parser.add_argument('--num_views',      type=int, default=4, help='# views per example')
         self.parser.add_argument('--num_kpts',       type=int, default=15, help='# pose keypoints')
 
         # ===============================================================
@@ -62,10 +61,6 @@ class Options:
         self.parser.add_argument('--no_max',         dest='max_norm', action='store_false', help='if use max_norm clip on grad')
         self.parser.add_argument('--max',            dest='max_norm', action='store_true', help='if use max_norm clip on grad')
         self.parser.set_defaults(max_norm=True)
-        self.parser.add_argument('--procrustes',     dest='procrustes', action='store_true', help='use procrustes analysis at testing')
-        self.parser.add_argument('--data_mode',  type=str, default='openpose', help='how to fetch data')
-        self.parser.add_argument('--dataset',       type=str, default='3dpeople', help='which dataset to learn on')
-        self.parser.add_argument('--test_set',      type=str, default='3dpeople', help='which test set to use')
 
     def _print(self):
         print("\n==================Options=================")
