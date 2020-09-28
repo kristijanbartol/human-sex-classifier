@@ -17,6 +17,17 @@ def one_hot(labels, num_classes):
     return oh_labels
 
 
+def random_scale(pose_2d, var=0.25):
+    scale_factor = np.random.normal(1., var, 1)
+    max_coord = np.amax(pose_2d, axis=0)
+    min_coord = np.amin(pose_2d, axis=0)
+    mid_point = (max_coord + min_coord) / 2.
+    pose_2d -= mid_point
+    pose_2d *= scale_factor
+    pose_2d += mid_point
+    return pose_2d
+
+
 def rot_from_euler(x, y, z):
     cosx = torch.cos(torch.deg2rad(x))
     #cosx = torch.cos(x)
