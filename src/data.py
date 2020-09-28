@@ -32,16 +32,15 @@ class ToTensor(object):
         return torch_sample
 
 
-class GenderDataset(Dataset):
+class ClassificationDataset(Dataset):
 
-    def __init__(self, num_kpts=15, transforms=None, data_type=None):
+    def __init__(self, num_kpts=15, transforms=None, dataset='identity', data_type=None):
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.data_type = data_type
 
-        print('>>> loading {} data'.format(data_type))
-        self.Y = np.load('./dataset/gender/{}_Y.npy'.format(data_type))
-        self.X = np.load('./dataset/gender/{}_X.npy'.format(data_type))
+        self.Y = np.load(f'./dataset/{dataset}/{data_type}_Y.npy')
+        self.X = np.load(f'./dataset/{dataset}/{data_type}_X.npy')
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]
@@ -50,6 +49,7 @@ class GenderDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
+        # TODO: Might not need flatten() here.
         sample = {'X': self.X[idx], 'Y': self.Y[idx].flatten()}
         if self.transforms:
             for transform in self.transforms:

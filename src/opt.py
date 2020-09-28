@@ -47,6 +47,8 @@ class Options:
         # ===============================================================
         self.parser.add_argument('--max_norm',       dest='max_norm', action='store_true', help='maxnorm constraint to weights')
         self.parser.add_argument('--num_kpts',       type=int, default=15, help='# pose keypoints')
+        self.parser.add_argument('--dataset',       type=str, default='identity', help='which dataset/task to learn')
+        self.parser.add_argument('--num_classes',   type=int, default=2, help='# of possible classification classes')
 
         # ===============================================================
         #                     Running options

@@ -11,8 +11,8 @@ from random import random
 from const import H, W, PELVIS, RADIUS, K
 
 
-def one_hot(labels):
-    oh_labels = np.zeros((labels.size, labels.max() + 1))
+def one_hot(labels, num_classes):
+    oh_labels = np.zeros((labels.size, num_classes))
     oh_labels[np.arange(labels.size), labels] = 1.
     return oh_labels
 

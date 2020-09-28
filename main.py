@@ -21,11 +21,11 @@ from src.opt import Options
 import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
-from src.data import ToTensor, GenderDataset
+from src.data import ToTensor, ClassificationDataset
 from src.data_utils import one_hot
 
 
-def train(train_loader, model, criterion, optimizer, num_kpts=15,
+def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=200,
           lr_init=None, lr_now=None, glob_step=None, lr_decay=None, gamma=None,
           max_norm=True):
     losses = utils.AverageMeter()
@@ -61,14 +61,12 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15,
         outputs = softmax(outputs)
 
         outputs = outputs.data.cpu().numpy()
-        targets = one_hot(targets.data.cpu().numpy())
-
-        batch_error = np.mean(np.abs(outputs - targets))
+        targets = one_hot(targets.data.cpu().numpy(), num_classes)
 
         errs.append(np.mean(np.abs(outputs - targets)))
         accs.append(accuracy_score(
-            np.argmax(targets, axis=0),
-            np.argmax(outputs, axis=0))
+            np.argmax(targets, axis=1),
+            np.argmax(outputs, axis=1))
         )
 
         # update summary
@@ -93,7 +91,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15,
     return glob_step, lr_now, losses.avg, err, acc
 
 
-def test(test_loader, model, criterion, num_kpts=17, inference=False):
+def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=False):
     losses = utils.AverageMeter()
 
     model.eval()
@@ -118,12 +116,12 @@ def test(test_loader, model, criterion, num_kpts=17, inference=False):
         outputs = softmax(outputs)
 
         outputs = outputs.data.cpu().numpy()
-        targets = one_hot(targets.data.cpu().numpy())
+        targets = one_hot(targets.data.cpu().numpy(), num_classes)
 
         errs.append(np.mean(np.abs(outputs - targets)))
         accs.append(accuracy_score(
-            np.argmax(targets, axis=0),
-            np.argmax(outputs, axis=0))
+            np.argmax(targets, axis=1),
+            np.argmax(outputs, axis=1))
         )
 
         if inference and not sample_output_saved:
@@ -166,7 +164,7 @@ def main(opt):
 
     # create model
     print(">>> creating model")
-    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=2)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
@@ -195,16 +193,18 @@ def main(opt):
             ToTensor(), 
     ]
 
-    train_dataset = GenderDataset(
+    train_dataset = ClassificationDataset(
             num_kpts=opt.num_kpts, 
             transforms=transforms, 
+            dataset=opt.dataset,
             data_type='train')
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
 
-    test_dataset = GenderDataset(
+    test_dataset = ClassificationDataset(
             num_kpts=opt.num_kpts, 
-            transforms=transforms, 
+            transforms=transforms,
+            dataset=opt.dataset,
             data_type='test')
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         shuffle=True, num_workers=opt.job)
@@ -223,10 +223,11 @@ def main(opt):
 
         # per epoch
         glob_step, lr_now, loss_train, err_train, acc_train = train(
-            train_loader, model, criterion, optimizer, num_kpts=opt.num_kpts,
+            train_loader, model, criterion, optimizer, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
             lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
             max_norm=opt.max_norm)
-        loss_test, err_test, acc_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts)
+        loss_test, err_test, acc_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts,
+                num_classes=opt.num_classes)
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,
