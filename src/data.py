@@ -13,8 +13,6 @@ from time import time
 import json
 
 from const import KPTS_17, KPTS_23, KPTS_15, H36M_KPTS_17, H36M_KPTS_15, NUM_KPTS
-from data_utils import generate_random_projection, random_translate, \
-        generate_uniform_projection_matrices, project
 
 # Ignore warnings
 import warnings

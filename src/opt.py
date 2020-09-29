@@ -73,7 +73,7 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        self.opt.name = 'gender-scaled-gauss0.25'
+#        self.opt.name = 'gender-scaled-0.25-2'
         ckpt = os.path.join(self.opt.ckpt, self.opt.name)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)
