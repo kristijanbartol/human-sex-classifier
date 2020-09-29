@@ -16,7 +16,7 @@ from data_utils import generate_uniform_projection_matrices, project, \
 
 
 DATASET_DIR = 'dataset/'
-PEOPLE3D_DIR = '/home/kristijan/phd/datasets/people3d/skeleton'
+PEOPLE3D_DIR = '/home/kristijan/phd/datasets/people3d/'
 
 GEN_H = 600
 GEN_W = 600
@@ -31,16 +31,33 @@ def to_origin(pose_3d):
     return pose_3d
 
 
-def prepare_3dpeople_gt(rootdir, dataset_name):
+def process_txt(fpath):
+    kpts = []
+    with open(fpath) as pf:
+        lines = [x[:-1] for x in pf.readlines()][1:]
+    for line_idx, line in enumerate(lines):
+        if line_idx + 1 in KPTS_15:
+            kpts.append([float(x) for x in line.split(' ')])
+    return kpts
 
-    def process_txt(fpath):
-        kpts = []
-        with open(fpath) as pf:
-            lines = [x[:-1] for x in pf.readlines()][1:]
-        for line_idx, line in enumerate(lines):
-            if line_idx + 1 in KPTS_15:
-                kpts.append([float(x) for x in line.split(' ')])
-        return kpts
+
+def process_json(json_path):
+    pose_2d = np.zeros((15, 3), dtype=np.float32)
+    with open(json_path) as fjson:
+        data = json.load(fjson)
+    try:
+        pose_2d_tmp = np.array(
+                data['people'][0]['pose_keypoints_2d'],
+                dtype=np.float32)
+        pose_2d[:, 0] = pose_2d_tmp[::3][:15]
+        pose_2d[:, 1] = pose_2d_tmp[1::3][:15]
+        pose_2d[:, 2] = np.array(1, dtype=np.float32)
+    except:
+        pass
+    return pose_2d
+
+
+def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
 
     def get_gender(subject_dirname):
         if 'woman' in subject_dirname:
@@ -48,9 +65,12 @@ def prepare_3dpeople_gt(rootdir, dataset_name):
         else:
             return 0
 
+    subdir = 'openpose' if openpose else 'skeleton'
+    rootdir = os.path.join(rootdir, subdir)
+
     train_X, train_Y, test_X, test_Y = [], [], [], []
     for data_type in ['train', 'test']:
-        data_dir = os.path.join(PEOPLE3D_DIR, data_type)
+        data_dir = os.path.join(rootdir, data_type)
         for subject_dirname in [x for x in sorted(os.listdir(data_dir)) if 'txt' not in x]:
             subject_dir = os.path.join(data_dir, subject_dirname)
             print(subject_dir)
@@ -59,8 +79,11 @@ def prepare_3dpeople_gt(rootdir, dataset_name):
                 pose_dir = os.path.join(action_dir, 'camera01')
                 for pose_name in sorted(os.listdir(pose_dir)):
                     pose_path = os.path.join(pose_dir, pose_name)
-                    kpts = process_txt(pose_path)
-                    pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
+                    if openpose:
+                        pose_2d = process_json(pose_path)
+                    else:
+                        kpts = process_txt(pose_path)
+                        pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
                     pose_2d[:, 0] /= P3D_H
                     pose_2d[:, 1] /= P3D_W
                     move_to_center(pose_2d)
@@ -195,6 +218,8 @@ def init_parser():
             help='which dataset (directory) to use')
     parser.add_argument('--name', type=str,
             help='name of a prepared dataset (directory)')
+    parser.add_argument('--openpose', dest='openpose', action='store_true',
+            help='use OpenPose predictions (not GT poses)')
 
     args = parser.parse_args()
     return args
@@ -206,7 +231,7 @@ if __name__ == '__main__':
     # preparation functions by dataset name string.
     if args.task == 'gender':
         if args.dataset == 'people3d':
-            prepare_3dpeople_gt(PEOPLE3D_DIR, args.name)
+            prepare_3dpeople_gt(PEOPLE3D_DIR, args.name, args.openpose)
         else:
             prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
                     args.name)
