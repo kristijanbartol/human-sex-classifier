@@ -12,11 +12,22 @@ from progress.bar import Bar as Bar
 from time import time
 import json
 
-from const import KPTS_17, KPTS_23, KPTS_15, H36M_KPTS_17, H36M_KPTS_15, NUM_KPTS
+from const import SMPL_KPTS_SUB_15, SMPL_KPTS_SUB_11, SMPL_KPTS_SUB_10, \
+        SMPL_KPTS_SUB_9, SMPL_KPTS_SUB_5, SMPL_KPTS_SUB_4
 
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
+
+
+kpts_dict = {
+        15: SMPL_KPTS_SUB_15,
+        11: SMPL_KPTS_SUB_11,
+        10: SMPL_KPTS_SUB_10,
+        9 : SMPL_KPTS_SUB_9,
+        5 : SMPL_KPTS_SUB_5,
+        4 : SMPL_KPTS_SUB_4
+}
 
 
 class ToTensor(object):
@@ -38,7 +49,10 @@ class ClassificationDataset(Dataset):
         self.data_type = data_type
 
         self.Y = np.load(f'./dataset/{dataset}/{data_type}_Y.npy')
+
+        kpts_set = kpts_dict[num_kpts]
         self.X = np.load(f'./dataset/{dataset}/{data_type}_X.npy')
+        self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]
