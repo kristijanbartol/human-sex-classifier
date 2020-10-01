@@ -13,7 +13,7 @@ from time import time
 import json
 
 from const import SMPL_KPTS_SUB_15, SMPL_KPTS_SUB_11, SMPL_KPTS_SUB_10, \
-        SMPL_KPTS_SUB_9, SMPL_KPTS_SUB_5, SMPL_KPTS_SUB_4
+        SMPL_KPTS_SUB_9, SMPL_KPTS_SUB_5, SMPL_KPTS_SUB_4, SMPL_KPTS_SUB_2
 
 # Ignore warnings
 import warnings
@@ -26,7 +26,8 @@ kpts_dict = {
         10: SMPL_KPTS_SUB_10,
         9 : SMPL_KPTS_SUB_9,
         5 : SMPL_KPTS_SUB_5,
-        4 : SMPL_KPTS_SUB_4
+        4 : SMPL_KPTS_SUB_4,
+        2 : SMPL_KPTS_SUB_2
 }
 
 
@@ -52,7 +53,7 @@ class ClassificationDataset(Dataset):
 
         kpts_set = kpts_dict[num_kpts]
         self.X = np.load(f'./dataset/{dataset}/{data_type}_X.npy')
-        self.X = self.X[:, :, kpts_set, :]
+        self.X = self.X[:, :, [1], :]
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]

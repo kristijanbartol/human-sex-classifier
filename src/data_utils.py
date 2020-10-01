@@ -16,12 +16,12 @@ def one_hot(labels, num_classes):
     return oh_labels
 
 
-def random_scale(pose_2d, var=0.25):
+def random_scale(pose_2d, scale=1.0, downscale=1.0):
     '''
     Random scale while keeping the pose location.
     '''
-    # TODO: Use var argument.
-    scale_factor = np.random.uniform(0.25, 2., 1)
+    scale_factor = np.random.uniform(
+            1. / (scale * downscale), scale, 1)
     max_coord = np.amax(pose_2d, axis=0)
     min_coord = np.amin(pose_2d, axis=0)
     mid_point = (max_coord + min_coord) / 2.

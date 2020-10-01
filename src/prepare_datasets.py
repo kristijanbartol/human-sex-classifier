@@ -157,8 +157,8 @@ def prepare_identity(rootdir, dataset_name, scale=True, train_ratio=0.8):
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
 
-def prepare_gender(rootdir, dataset_name, scale=True, random_orientation=True, 
-        train_ratio=0.8):
+def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0, 
+        orient_x=False, orient_z=False, train_ratio=0.8):
 
     def get_gender(subject_dir):
         with open(os.path.join(subject_dir, 'params.json')) as fjson:
@@ -182,10 +182,9 @@ def prepare_gender(rootdir, dataset_name, scale=True, random_orientation=True,
             pose_path = os.path.join(subject_dir, pose_name)
             # TODO: Move 3D poses to the origin.
             pose_3d = np.load(pose_path)
-            P = generate_uniform_projection_matrices(1, random_orientation)[0]
+            P = generate_uniform_projection_matrices(1)[0]
             pose_2d = project(pose_3d, P)[SMPL_KPTS_15]
-            if scale:
-                pose_2d[:, :2] = random_scale(pose_2d[:, :2], var=0.5)
+            pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
             # TODO: Avoid this magic number.
             pose_2d[:, :2] /= (600. - 1)
             pose_2d = np.expand_dims(pose_2d, axis=0)
@@ -220,6 +219,10 @@ def init_parser():
             help='name of a prepared dataset (directory)')
     parser.add_argument('--openpose', dest='openpose', action='store_true',
             help='use OpenPose predictions (not GT poses)')
+    parser.add_argument('--scale', type=float,
+            help='main scale factor (upper and lower bound)')
+    parser.add_argument('--downscale', type=float,
+            help='downscale factor (additional)')
 
     args = parser.parse_args()
     return args
@@ -234,7 +237,7 @@ if __name__ == '__main__':
             prepare_3dpeople_gt(PEOPLE3D_DIR, args.name, args.openpose)
         else:
             prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
-                    args.name)
+                    args.name, args.scale, args.downscale)
     else:
         prepare_identity(f'../smplx-generator/data/{args.dataset}/', 
                 args.name)

@@ -171,11 +171,18 @@ SMPL_PARTS = [
 
 # NOTE: Maybe you will need to name these diffently in the future.
 SMPL_KPTS_SUB_15 = range(15)
+# Remove knees and elbows.
 SMPL_KPTS_SUB_11 = [0, 1, 2, 5, 6, 7, 8, 9, 10, 13, 14]
+# + Remove neck.
 SMPL_KPTS_SUB_10 = [0, 1, 2, 5, 6, 8, 9, 10, 13, 14]
+# + Remove pelvis.
 SMPL_KPTS_SUB_9  = [1, 2, 5, 6, 8, 9, 10, 13, 14]
+# + Remove hands and legs.
 SMPL_KPTS_SUB_5  = [1, 2, 8, 9, 10]
+# + Remove head.
 SMPL_KPTS_SUB_4  = [1, 2, 9, 10]
+# Hips only.
+SMPL_KPTS_SUB_2  = [1, 2]
 
 #RADIUS = 54.67287
 RADIUS = 4.67287
