@@ -47,7 +47,7 @@ class Options:
         # ===============================================================
         self.parser.add_argument('--max_norm',       dest='max_norm', action='store_true', help='maxnorm constraint to weights')
         self.parser.add_argument('--num_kpts',       type=int, default=15, help='# pose keypoints')
-        self.parser.add_argument('--dataset',       type=str, default='identity', help='which dataset/task to learn')
+        self.parser.add_argument('--datasets',       type=str, default='gender', help='which datasets to use')
         self.parser.add_argument('--num_classes',   type=int, default=2, help='# of possible classification classes')
 
         # ===============================================================
@@ -73,13 +73,14 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        self.opt.name = 'gender-people3d-center'
+        self.opt.name = 'gender-people3d-center-2'
         ckpt = os.path.join(self.opt.ckpt, self.opt.name)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)
         if self.opt.load:
             if not os.path.isfile(self.opt.load):
                 print ("{} is not found".format(self.opt.load))
+        self.opt.datasets = self.opt.datasets.split(',')
         self.opt.is_train = False if self.opt.test else True
         self.opt.ckpt = ckpt
         self._print()
