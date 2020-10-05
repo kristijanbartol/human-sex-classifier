@@ -43,6 +43,15 @@ def move_to_center(pose_2d):
     return pose_2d
 
 
+def move_from_center(pose_2d, y_axis=False):
+    '''
+    Move normalized pose from the center.
+    '''
+    trans_x = np.random.uniform(-0.2, 0.2, 1)
+    pose_2d[:, 0] += trans_x
+    return pose_2d
+
+
 def create_look_at_matrix(x, y, z):
     from_ = np.array([x, y, z], dtype=np.float32)
     to = np.array([0., 0., 0.], dtype=np.float32)

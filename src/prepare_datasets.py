@@ -12,7 +12,7 @@ import argparse
 
 from const import KPTS_15, SMPL_KPTS_15
 from data_utils import sample_projection_matrix, project, \
-        random_scale, move_to_center
+        random_scale, move_to_center, move_from_center
 
 
 DATASET_DIR = 'dataset/'
@@ -22,13 +22,6 @@ GEN_H = 600
 GEN_W = 600
 P3D_H = 480
 P3D_W = 640
-
-
-# TODO: Move to data_utils.py.
-def to_origin(pose_3d):
-    for kpt_idx in range(pose_3d.shape[0]):
-        pose_3d[kpt_idx] -= pose_3d[0]
-    return pose_3d
 
 
 def process_txt(fpath):
@@ -86,7 +79,6 @@ def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0,
             pose_path = os.path.join(subject_dir, pose_name)
             pose_2d = process_json(pose_path)
             pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
-            pose_2d = move_to_center(pose_2d)
             # TODO: Avoid this magic number.
             pose_2d[:, :2] /= (600. - 1)
             pose_2d = np.expand_dims(pose_2d, axis=0)
@@ -164,7 +156,7 @@ def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
 
 
 def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0, 
-        orient_x=False, orient_z=False, train_ratio=0.8):
+        centered=False, orient_x=False, orient_z=False, train_ratio=0.8):
 
     def get_gender(subject_dir):
         with open(os.path.join(subject_dir, 'params.json')) as fjson:
@@ -193,6 +185,8 @@ def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0,
             pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
             # TODO: Avoid this magic number.
             pose_2d[:, :2] /= (600. - 1)
+            if not centered:
+                pose_2d = move_from_center(pose_2d)
             pose_2d = np.expand_dims(pose_2d, axis=0)
             if int(subject_dirname[-4:]) < max_dir_idx:
                 train_X.append(pose_2d)
@@ -233,6 +227,8 @@ def init_parser():
             help='random X-axis transformation of the pose')
     parser.add_argument('--orient_z', dest='orient_z', action='store_true',
             help='random Z-axis transformation of the pose')
+    parser.add_argument('--centered', dest='centered', action='store_true',
+            help='centered 2D input poses')
 
     args = parser.parse_args()
     return args
@@ -240,15 +236,10 @@ def init_parser():
 
 if __name__ == '__main__':
     args = init_parser()
-    # TODO: Merge gender and identity functions into one and call
-    # preparation functions by dataset name string.
-    if args.task == 'gender':
-        if args.dataset == 'people3d':
-            prepare_3dpeople_gt(PEOPLE3D_DIR, args.name, args.openpose)
-        else:
-            prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
-                    args.name, args.scale, args.downscale)
+    if args.dataset == 'people3d':
+        prepare_3dpeople_gt(PEOPLE3D_DIR, args.name, args.openpose, 
+                args.centered)
     else:
-        prepare_identity(f'../smplx-generator/data/{args.dataset}/', 
-                args.name)
+        prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
+                args.name, args.scale, args.downscale, args.centered)
 
