@@ -102,7 +102,7 @@ def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0,
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
 
-def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
+def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
 
     def get_gender(subject_dirname):
         if 'woman' in subject_dirname:
@@ -131,7 +131,8 @@ def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
                         pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
                     pose_2d[:, 0] /= P3D_H
                     pose_2d[:, 1] /= P3D_W
-                    pose_2d = move_to_center(pose_2d)
+                    if centered:
+                        pose_2d = move_to_center(pose_2d)
                     pose_2d[:, 2] = np.ones(pose_2d.shape[0])
                     pose_2d = np.expand_dims(pose_2d, axis=0)
 
@@ -211,8 +212,6 @@ def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0,
 def init_parser():
     parser = argparse.ArgumentParser(
             description='Prepare datasets for learning.')
-    parser.add_argument('--task', type=str,
-            help='which task to prepare (gender/identity)')
     parser.add_argument('--dataset', type=str,
             help='which dataset (directory) to use')
     parser.add_argument('--name', type=str,
@@ -237,9 +236,14 @@ def init_parser():
 if __name__ == '__main__':
     args = init_parser()
     if args.dataset == 'people3d':
-        prepare_3dpeople_gt(PEOPLE3D_DIR, args.name, args.openpose, 
+        prepare_3dpeople(PEOPLE3D_DIR, args.name, args.openpose, 
                 args.centered)
     else:
-        prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
-                args.name, args.scale, args.downscale, args.centered)
+        # TODO: Merge OpenPose and GT into the same function.
+        if args.openpose:
+            prepare_openpose(f'../smplx-generator/data/{args.dataset}',
+                    args.name, args.scale, args.downscale, args.centered)
+        else:
+            prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
+                    args.name, args.scale, args.downscale, args.centered)
 
