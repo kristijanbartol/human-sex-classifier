@@ -18,6 +18,7 @@ RUN pip3 install numpy \
 #    torch \
 #    torchvision \
     matplotlib \
+    scikit-learn \
     scikit-image \
     pandas \
     progress \
