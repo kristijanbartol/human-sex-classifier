@@ -1,6 +1,6 @@
 FROM ubuntu:18.04
 
-WORKDIR /digging-into-3d-from-2d-pose/
+WORKDIR /gender-classifier/
 
 RUN apt-get update \
     && apt-get install -y \

@@ -53,7 +53,7 @@ class ClassificationDataset(Dataset):
 
         kpts_set = kpts_dict[num_kpts]
         self.X = np.load(f'./dataset/{dataset}/{data_type}_X.npy')
-        self.X = self.X[:, :, [1], :]
+        self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]

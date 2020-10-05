@@ -11,7 +11,7 @@ import random
 import argparse
 
 from const import KPTS_15, SMPL_KPTS_15
-from data_utils import generate_uniform_projection_matrices, project, \
+from data_utils import sample_projection_matrix, project, \
         random_scale, move_to_center
 
 
@@ -57,6 +57,59 @@ def process_json(json_path):
     return pose_2d
 
 
+def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0, 
+        orient_x=False, orient_z=False, train_ratio=0.8):
+
+    def get_gender(gt_pose_dir):
+        with open(os.path.join(gt_pose_dir, 'params.json')) as fjson:
+            params = json.load(fjson)
+            return params['gender']
+
+    train_X = []
+    train_Y = []
+    test_X  = []
+    test_Y  = []
+
+    gt_dir = os.path.join(rootdir, 'gt/')
+    openpose_dir = os.path.join(rootdir, 'openpose/')
+    subject_dirs = [x for x in os.listdir(gt_dir) if 'npy' not in x]
+    # Used for train/test split.
+    num_dirs_per_gender = len(subject_dirs) / 2
+    max_dir_idx = int(train_ratio * num_dirs_per_gender)
+
+    # TODO: Merge GT and OpenPose into same function.
+    for subject_dirname in [x for x in os.listdir(openpose_dir) if 'npy' not in x]:
+        subject_dir = os.path.join(openpose_dir, subject_dirname)
+        gt_pose_dir = os.path.join(gt_dir, subject_dirname)
+        print(subject_dir)
+        for pose_name in [x for x in os.listdir(subject_dir) if 'npy' in x]:
+            pose_path = os.path.join(subject_dir, pose_name)
+            pose_2d = process_json(pose_path)
+            pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
+            pose_2d = move_to_center(pose_2d)
+            # TODO: Avoid this magic number.
+            pose_2d[:, :2] /= (600. - 1)
+            pose_2d = np.expand_dims(pose_2d, axis=0)
+            if int(subject_dirname[-4:]) < max_dir_idx:
+                train_X.append(pose_2d)
+                train_Y.append(get_gender(gt_pose_dir))
+            else:
+                test_X.append(pose_2d)
+                test_Y.append(get_gender(gt_pose_dir))
+
+    prepared_dir = os.path.join(DATASET_DIR, dataset_name)
+    os.makedirs(prepared_dir, exist_ok=True)
+
+    train_X = np.array(train_X, dtype=np.float32)
+    train_Y = np.array(train_Y, dtype=np.long)
+    test_X  = np.array(test_X,  dtype=np.float32)
+    test_Y  = np.array(test_Y,  dtype=np.long)
+    np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
+    np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
+    np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
+    np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
+
+
 def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
 
     def get_gender(subject_dirname):
@@ -86,7 +139,7 @@ def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
                         pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
                     pose_2d[:, 0] /= P3D_H
                     pose_2d[:, 1] /= P3D_W
-                    move_to_center(pose_2d)
+                    pose_2d = move_to_center(pose_2d)
                     pose_2d[:, 2] = np.ones(pose_2d.shape[0])
                     pose_2d = np.expand_dims(pose_2d, axis=0)
 
@@ -97,53 +150,6 @@ def prepare_3dpeople_gt(rootdir, dataset_name, openpose=False):
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(get_gender(subject_dirname))
-
-    prepared_dir = os.path.join(DATASET_DIR, dataset_name)
-    os.makedirs(prepared_dir, exist_ok=True)
-    train_X = np.array(train_X, dtype=np.float32)
-    train_Y = np.array(train_Y, dtype=np.long)
-    test_X  = np.array(test_X,  dtype=np.float32)
-    test_Y  = np.array(test_Y,  dtype=np.long)
-    np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
-    np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
-    np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
-    np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
-
-
-def prepare_identity(rootdir, dataset_name, scale=True, train_ratio=0.8):
-    print(f'Dataset name: {dataset_name}')
-
-    P = generate_uniform_projection_matrices(1)[0]
-    train_X = []
-    train_Y = []
-    test_X  = []
-    test_Y  = []
-
-    gt_dir = os.path.join(rootdir, 'gt/')
-    for subject_idx, subject_dirname in \
-            enumerate([x for x in sorted(os.listdir(gt_dir)) if 'npy' not in x]):
-        subject_dir = os.path.join(gt_dir, subject_dirname)
-        print(subject_dirname)
-        pose_dirs = [x for x in sorted(os.listdir(subject_dir)) if 'npy' in x]
-        ratio_idx = int(train_ratio * len(pose_dirs))
-        for pose_idx, pose_name in enumerate(pose_dirs):
-            pose_path = os.path.join(subject_dir, pose_name)
-            # TODO: Move 3D poses to the origin.
-            pose_3d = np.load(pose_path)
-            pose_3d = to_origin(pose_3d)
-            pose_2d = project(pose_3d, P)[SMPL_KPTS_15]
-            if scale:
-                pose_2d[:, :2] = random_scale(pose_2d[:, :2], var=0.5)
-            # TODO: Normalize without a magic number 600.
-            pose_2d[:, :2] /= (600. - 1)
-            pose_2d = np.expand_dims(pose_2d, axis=0)
-
-            if pose_idx > subject_idx and pose_idx < ratio_idx + subject_idx:
-                train_X.append(pose_2d)
-                train_Y.append(subject_idx)
-            else:
-                test_X.append(pose_2d)
-                test_Y.append(subject_idx)
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
@@ -182,7 +188,7 @@ def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0,
             pose_path = os.path.join(subject_dir, pose_name)
             # TODO: Move 3D poses to the origin.
             pose_3d = np.load(pose_path)
-            P = generate_uniform_projection_matrices(1)[0]
+            P = sample_projection_matrix(orient_x, orient_z)
             pose_2d = project(pose_3d, P)[SMPL_KPTS_15]
             pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
             # TODO: Avoid this magic number.
@@ -219,10 +225,14 @@ def init_parser():
             help='name of a prepared dataset (directory)')
     parser.add_argument('--openpose', dest='openpose', action='store_true',
             help='use OpenPose predictions (not GT poses)')
-    parser.add_argument('--scale', type=float,
+    parser.add_argument('--scale', type=float, default=1.,
             help='main scale factor (upper and lower bound)')
-    parser.add_argument('--downscale', type=float,
+    parser.add_argument('--downscale', type=float, default=1.,
             help='downscale factor (additional)')
+    parser.add_argument('--orient_x', dest='orient_x', action='store_true',
+            help='random X-axis transformation of the pose')
+    parser.add_argument('--orient_z', dest='orient_z', action='store_true',
+            help='random Z-axis transformation of the pose')
 
     args = parser.parse_args()
     return args

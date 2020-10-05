@@ -73,7 +73,7 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        self.opt.name = 'gender-kpts10'
+        self.opt.name = 'gender-people3d-center'
         ckpt = os.path.join(self.opt.ckpt, self.opt.name)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)

@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation as rot
 import torch, torchvision
 from time import time
 import math
-from random import random
+import random
 
 from const import H, W, PELVIS, RADIUS, K
 
@@ -62,32 +62,32 @@ def create_look_at_matrix(x, y, z):
     return np.transpose(R)
 
 
-def generate_uniform_projection_matrices(num_views):
+def sample_projection_matrix(orient_x=False, orient_z=False):
     # NOTE: Z-axis is depth, Y-axis is height.
-    step = 2 * np.pi / num_views
-    Ps = []
-    for idx in range(num_views):
-        angle = idx * step
-        if angle < np.pi / 2:
-            z = -RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
-            x = z * np.tan(angle)
-        elif angle < np.pi:
-            angle -= np.pi / 2
-            x = -RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
-            z = -x * np.tan(angle)
-        elif angle < 3 * np.pi / 2:
-            angle -= np.pi
-            z = RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
-            x = z * np.tan(angle)
-        else:
-            angle -= 3 * np.pi / 2
-            x = RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
-            z = -x * np.tan(angle)
+    # TODO: Implement random Z-axis.
+    NUM_VIEWS = 500
+    step = 2 * np.pi / NUM_VIEWS
+        
+    angle = step * random.randint(0, NUM_VIEWS)
+    if angle < np.pi / 2:
+        z = -RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
+        x = z * np.tan(angle)
+    elif angle < np.pi:
+        angle -= np.pi / 2
+        x = -RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
+        z = -x * np.tan(angle)
+    elif angle < 3 * np.pi / 2:
+        angle -= np.pi
+        z = RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
+        x = z * np.tan(angle)
+    else:
+        angle -= 3 * np.pi / 2
+        x = RADIUS / np.sqrt(np.tan(angle) ** 2 + 1)
+        z = -x * np.tan(angle)
             
-        RT = create_look_at_matrix(x, 0., z)
-        P = np.dot(np.array(K), RT)
-        Ps.append(P)
-    return np.array(Ps)
+    RT = create_look_at_matrix(x, 0., z)
+    P = np.dot(np.array(K), RT)
+    return P
 
 
 def project(kpts_3d, proj_mat):
