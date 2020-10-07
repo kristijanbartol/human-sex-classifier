@@ -1,1 +1,1 @@
-docker exec -it kbartol-digging /bin/bash
+docker exec -it kbartol-gender /bin/bash
