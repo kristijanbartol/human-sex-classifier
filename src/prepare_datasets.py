@@ -1,4 +1,5 @@
 import os
+import cv2
 import numpy as np
 from copy import deepcopy
 from scipy.spatial.transform import Rotation as rot
@@ -48,6 +49,72 @@ def process_json(json_path):
     except:
         pass
     return pose_2d
+
+
+def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
+
+    def get_gender_label_idx(line):
+        for item_idx, item in enumerate(line.split(' ')):
+            if item == 'personalMale' or item == 'personalFemale':
+                return item_idx
+
+    def get_img_size(img_path):
+        img = cv2.imread(img_path)
+        return max(img.shape[0], img.shape[1])
+
+    X, Y = [], []
+    openpose_dir = os.path.join(rootdir, 'openpose')
+    invalid_counter = 0
+    for xdir_name in sorted(os.listdir(openpose_dir)):
+        print(xdir_name)
+        xdir = os.path.join(openpose_dir, xdir_name)
+        img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
+        label_path = os.path.join(img_dir, 'Label.txt')
+        fnames = sorted(os.listdir(xdir), key=lambda x: int(x.split('_')[0]))
+
+        with open(label_path) as flabel:
+            labels = [x[:-1] for x in flabel.readlines()]
+        id_gender_dict = {}
+        gender_label_idx = get_gender_label_idx(labels[0])
+        for line in labels:
+            id_ = int(line.split(' ')[0].split('.')[0])
+            try:
+                gender = 0 if 'Male' in line.split(' ')[gender_label_idx] else 1
+            except:
+                gender = None
+            id_gender_dict[id_] = gender
+        
+        idx = 0
+        img_path = os.path.join(img_dir, os.listdir(img_dir)[0])
+        img_size = get_img_size(img_path)
+        for fname in fnames:
+            kpt_path = os.path.join(xdir, fname)
+            pose_2d = process_json(kpt_path)
+            pose_2d[:, :2] /= img_size
+            subject_id = int(fname.split('.')[0].split('_')[0])
+            gender = id_gender_dict[subject_id]
+            if gender is not None and np.any(pose_2d):
+                X.append(pose_2d)
+                Y.append(gender)
+            else:
+                invalid_counter += 1
+
+    prepared_dir = os.path.join(DATASET_DIR, dataset_name)
+    os.makedirs(prepared_dir, exist_ok=True)
+    X = np.array(X, dtype=np.float32)
+    Y = np.array(Y, dtype=np.long)
+
+    train_idxs = np.random.choice(X.shape[0], int(train_ratio*X.shape[0]))
+    test_idxs = np.ones(X.shape[0], dtype=np.bool)
+    test_idxs[train_idxs] = False
+    train_X, test_X = X[train_idxs], X[test_idxs]
+    train_Y, test_Y = Y[train_idxs], Y[test_idxs]
+    np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
+    np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
+    np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
+    np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
+    print(f'Number of invalid samples: {invalid_counter}')
+    print(f'Total number of samples: {invalid_counter + X.shape[0]}')
 
 
 def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0, 
@@ -238,7 +305,7 @@ if __name__ == '__main__':
     if args.dataset == 'people3d':
         prepare_3dpeople(PEOPLE3D_DIR, args.name, args.openpose, 
                 args.centered)
-    else:
+    elif args.dataset == 'smpl':
         # TODO: Merge OpenPose and GT into the same function.
         if args.openpose:
             prepare_openpose(f'../smplx-generator/data/{args.dataset}',
@@ -246,4 +313,6 @@ if __name__ == '__main__':
         else:
             prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
                     args.name, args.scale, args.downscale, args.centered)
+    else:
+        prepare_peta('/home/kristijan/phd/datasets/PETA/', args.name)
 
