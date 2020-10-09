@@ -72,15 +72,23 @@ def draw_openpose(json_fpath, img_path):
     cv2.waitKey(0)
 
 
+def init_parser():
+    parser = argparse.ArgumentParser(
+            description='Visualize stacked poses and original images.')
+    parser.add_argument('--dataset', type=str,
+            help='which dataset (directory) to visualize')
+    parser.add_argument('--report', type=str,
+            choices=['subset', 'action', 'subject', 'best', 'worst']
+            help='which reports to visualize')
+    parser.add_argument('--grid', type=int, nargs='+',
+            help='maximal dimensions of the pose grid (X x Y)')
+    parser.add_argument('--show_image', dest='show_image', action='store_true',
+            help='use original images as backgrounds')
+
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
-#    kpts_2d = np.load('data/people3d-gt-not-centered/train_X.npy')[0]
-#    kpts_2d = np.load('data/render-orient_x-scale_2_1-openpose-center/train_X.npy')[0]
-    kpts_2d = np.load('data/peta/train_X.npy')[5000]
-    draw_keypoints(kpts_2d * 200., 300, 300)
-#    draw_txt('../../data/3DPeople/skeleton/woman01/09_11_run/camera01/0001.txt')
-    draw_txt('../../data/3DPeople/skeleton/woman01/01_02_climb_down/camera01/0001.txt')
-    '''
-    draw_openpose('dataset/kiki1_mesh3_keypoints.json', 
-            'dataset/kiki1_mesh3.png')
-    '''
+    args = init_parser()
 

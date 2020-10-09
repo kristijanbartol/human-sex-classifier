@@ -315,7 +315,7 @@ def init_parser():
             description='Prepare datasets for learning.')
     parser.add_argument('--dataset', type=str, 
             choices=['people3d', 'smpl', 'peta'],
-            help='which dataset (directory) to use')
+            help='which dataset to use (not directory)')
     parser.add_argument('--name', type=str,
             help='name of a prepared dataset (directory)')
     parser.add_argument('--openpose', dest='openpose', action='store_true',
