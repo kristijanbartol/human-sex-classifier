@@ -205,7 +205,17 @@ def main(opt):
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
 
-    if len(opt.datasets) > 1:
+    set_ = False
+    for dataset_name in opt.datasets:
+        if 'peta' == dataset_name:
+            test_dataset = ClassificationDataset(
+                    num_kpts=opt.num_kpts, 
+                    transforms=transforms,
+                    dataset=dataset_name,
+                    data_type='test')
+            set_ = True
+            break
+    if not set_:
         for dataset_name in opt.datasets:
             if 'people3d' in dataset_name:
                 test_dataset = ClassificationDataset(
@@ -213,13 +223,7 @@ def main(opt):
                         transforms=transforms,
                         dataset=dataset_name,
                         data_type='test')
-                break
-    else:
-        test_dataset = ClassificationDataset(
-                num_kpts=opt.num_kpts, 
-                transforms=transforms,
-                dataset=opt.datasets[0],
-                data_type='test')
+
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         shuffle=True, num_workers=opt.job)
 

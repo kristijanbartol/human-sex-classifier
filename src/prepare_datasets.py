@@ -91,6 +91,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
             kpt_path = os.path.join(xdir, fname)
             pose_2d = process_json(kpt_path)
             pose_2d[:, :2] /= img_size
+            pose_2d = np.expand_dims(pose_2d, axis=0)
             subject_id = int(fname.split('.')[0].split('_')[0])
             gender = id_gender_dict[subject_id]
             if gender is not None and np.any(pose_2d):
@@ -196,8 +197,7 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                     else:
                         kpts = process_txt(pose_path)
                         pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
-                    pose_2d[:, 0] /= P3D_H
-                    pose_2d[:, 1] /= P3D_W
+                    pose_2d[:, :2] /= 640.
                     if centered:
                         pose_2d = move_to_center(pose_2d)
                     pose_2d[:, 2] = np.ones(pose_2d.shape[0])

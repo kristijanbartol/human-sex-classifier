@@ -44,13 +44,16 @@ class ToTensor(object):
 
 class ClassificationDataset(Dataset):
 
-    def __init__(self, num_kpts=15, transforms=None, dataset='gender', data_type=None):
+    def __init__(self, num_kpts=15, transforms=None, dataset='peta', data_type=None):
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.data_type = data_type
+        
+        print(f'>>> loading {dataset} {data_type} dataset')
 
         self.Y = np.load(f'./dataset/{dataset}/{data_type}_Y.npy')
 
+        # TODO: Add different keypoints sets for different datasets.
         kpts_set = kpts_dict[num_kpts]
         self.X = np.load(f'./dataset/{dataset}/{data_type}_X.npy')
         self.X = self.X[:, :, kpts_set, :]
