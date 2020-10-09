@@ -100,7 +100,9 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
     start = time.time()
     batch_time = 0
     bar = Bar('>>>', fill='>', max=len(test_loader))
-    sample_output_saved = False
+
+    if inference:
+        scores = []
 
     for i, sample in enumerate(test_loader):
         inputs = sample['X'].cuda()
@@ -124,9 +126,10 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
             np.argmax(outputs, axis=1))
         )
 
-        if inference and not sample_output_saved:
-            sample_output_saved = True
-            np.save('outputs.npy', outputs)
+        if inference:
+            for output, target in zip(outputs, targets):
+                predicted_label = np.round(...)
+                pass
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -225,7 +228,7 @@ def main(opt):
                         data_type='test')
 
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
-                        shuffle=True, num_workers=opt.job)
+                        num_workers=opt.job)
 
     if opt.test:
         loss_test, err_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts, inference=True)
