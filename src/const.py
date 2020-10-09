@@ -24,11 +24,11 @@ KPTS_15 = [
         1,      # hips
         5,      # neck
         6,      # head
-        10,     # lshoulder
         11,     # larm
+        12,     # lforearm
         13,     # lhand
-        34,     # rshoulder
         35,     # rarm
+        36,     # rforearm
         37,     # rhand
         58,     # rightUpLeg
         59,     # rleg
