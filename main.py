@@ -128,8 +128,8 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
 
         if inference:
             for output, target in zip(outputs, targets):
-                predicted_label = np.round(...)
-                pass
+                is_correct = np.round(output) == target
+                scores.append((is_correct, output, target))
 
         # update summary
         if (i + 1) % 100 == 0:
