@@ -162,14 +162,17 @@ class PETA(ClassificationDataset):
             json.dump(report_dict, fjson)
 
     def __extract_top(self, order, num_top=100):
+        top_dict = {}
         reverse = False if 'best' else True
         scores = sorted(scores, key=lambda x: np.abs(x[1] - x[2]), 
                 reverse=reverse)
         top_samples = scores[:num_top]
+        for top_sample in top_samples:
+            top_dict[top_sample[3]] = np.abs(x[1] - x[2])
+            
         with open(os.path.join(self.rootdir,
-            f'report_{order}_{num_top}.json'), 'w') as f:
-            for sample_idx in top_samples:
-                f.write(str(sample_idx) + '\n')
+            f'report_{order}_{num_top}.json'), 'w') as fjson:
+                fjson.dump(top_dict, fjson)
 
     def report(self, scores):
         super().report()

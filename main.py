@@ -127,9 +127,10 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
         )
 
         if inference:
-            for output, target in zip(outputs, targets):
+            for in_batch_idx, output, target in enumerate(zip(outputs, targets)):
                 is_correct = np.round(output) == target
-                scores.append((is_correct, output, target))
+                # TODO; Create score class.
+                scores.append((is_correct, output, target, i * batch_size + in_batch_idx))
 
         # update summary
         if (i + 1) % 100 == 0:

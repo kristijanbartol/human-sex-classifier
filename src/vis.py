@@ -77,7 +77,7 @@ def init_parser():
             description='Visualize stacked poses and original images.')
     parser.add_argument('--dataset', type=str,
             help='which dataset (directory) to visualize')
-    parser.add_argument('--report', type=str,
+    parser.add_argument('--reports', type=str, nargs='+',
             choices=['subset', 'action', 'subject', 'best', 'worst']
             help='which reports to visualize')
     parser.add_argument('--grid', type=int, nargs='+',
@@ -91,4 +91,6 @@ def init_parser():
 
 if __name__ == '__main__':
     args = init_parser()
+    for report_type in args.reports:
+        pass
 
