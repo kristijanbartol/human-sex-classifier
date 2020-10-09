@@ -96,16 +96,16 @@ class People3D(ClassificationDataset):
             dict_ = self.action_idxs_dict
         else:
             dict_ = self.subject_idxs_dict
-        for action in self.action_idxs_dict:
+        for key in dict_:
             error = 0.
             correct_counter = 0
-            for idx in self.action_idxs_dict[action]:
+            for idx in dict_[key]:
                 error += np.abs(scores[idx][1] - scores[idx][2])
                 correct_counter += scores[idx][0]
-            num_samples = len(self.action_idxs_dict[action])
+            num_samples = len(dict_[key])
             mean_error = error / num_samples
             accuracy = float(correct_counter) / num_samples
-            action_report_dict[action] = {
+            report_dict[key] = {
                 'error': mean_error,
                 'accuracy': accuracy
                 # TODO: Add the rest of the confusion matrix.
@@ -128,6 +128,52 @@ class People3D(ClassificationDataset):
         super().report()
         self.__report(scores, 'action')
         self.__report(scores, 'subject')
+        self.__extract_top(scores, 'best')
+        self.__extract_top(scores, 'worst')
+
+
+class PETA(ClassificationDataset):
+
+    def __init__(self, name, num_kpts, transforms, data_type):
+        super().__init__(name, num_kpts, transforms, data_type)
+        if data_type == 'test':
+            with open(os.path.join(self.rootdir, 
+                'test_idxs_dict.json') as fjson:
+                self.test_idxs_dict = json.load(fjson)
+
+    def __report(self, scores):
+        report_dict = {}
+        for subdataset in self.test_idxs_dict:
+            error = 0.
+            correct_counter = 0
+            for idx in self.test_idxs_dict[subdataset]:
+                error += np.abs(scores[idx][1] - scores[idx][2])
+                correct_counter += scores[idx][0]
+            num_samples = len(self.test_idxs_dict[subdataset])
+            mean_error = error / num_samples
+            accuracy = float(correct_counter) / num_samples
+            report_dict[subdataset] = {
+                'error': mean_error,
+                'accuracy': accuracy
+                # TODO: Add the rest of the confusion matrix.
+            }
+        with open(os.path.join(self.rootdir, 
+            f'report_per_subdataset.json', 'w')) as fjson:
+            json.dump(report_dict, fjson)
+
+    def __extract_top(self, order, num_top=100):
+        reverse = False if 'best' else True
+        scores = sorted(scores, key=lambda x: np.abs(x[1] - x[2]), 
+                reverse=reverse)
+        top_samples = scores[:num_top]
+        with open(os.path.join(self.rootdir,
+            f'report_{order}_{num_top}.json'), 'w') as f:
+            for sample_idx in top_samples:
+                f.write(str(sample_idx) + '\n')
+
+    def report(self, scores):
+        super().report()
+        self.__report(scores)
         self.__extract_top(scores, 'best')
         self.__extract_top(scores, 'worst')
 
