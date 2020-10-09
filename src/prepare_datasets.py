@@ -63,10 +63,13 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         return max(img.shape[0], img.shape[1])
 
     X, Y = [], []
+    idxs_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
     invalid_counter = 0
+    idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
         print(xdir_name)
+        idxs_dict[xdir_name] = []
         xdir = os.path.join(openpose_dir, xdir_name)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
@@ -84,7 +87,6 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 gender = None
             id_gender_dict[id_] = gender
         
-        idx = 0
         img_path = os.path.join(img_dir, os.listdir(img_dir)[0])
         img_size = get_img_size(img_path)
         for fname in fnames:
@@ -97,6 +99,8 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
             if gender is not None and np.any(pose_2d):
                 X.append(pose_2d)
                 Y.append(gender)
+                idxs_dict[xdir_name].append(idx)
+                idx += 1
             else:
                 invalid_counter += 1
 
@@ -106,6 +110,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     Y = np.array(Y, dtype=np.long)
 
     train_idxs = np.random.choice(X.shape[0], int(train_ratio*X.shape[0]))
+    # NOTE: Test indexes are regenerated every time, so might get different results.
     test_idxs = np.ones(X.shape[0], dtype=np.bool)
     test_idxs[train_idxs] = False
     train_X, test_X = X[train_idxs], X[test_idxs]
@@ -114,6 +119,20 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
+
+    with open(os.path.join(prepared_dir, 'test_idxs_dict.json'), 'w') as fjson:
+        # Need to select only the test set idxs for the dict.
+        test_idxs_dict = {}
+        for test_idx in test_idxs:
+            for key in idxs_dict:
+                if test_idx in idxs_dict[key]:
+                    if key in test_idxs_dict:
+                        test_idxs_dict[key].append(test_idx)
+                    else:
+                        test_idxs_dict[key] = [test_idx]
+                    break
+        json.dump(test_idxs_dict, fjson)
+
     print(f'Number of invalid samples: {invalid_counter}')
     print(f'Total number of samples: {invalid_counter + X.shape[0]}')
 
@@ -180,14 +199,21 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
 
     subdir = 'openpose' if openpose else 'skeleton'
     rootdir = os.path.join(rootdir, subdir)
+    test_action_idxs_dict = {}
+    test_subject_idxs_dict = {}
+    idx = 0
 
     train_X, train_Y, test_X, test_Y = [], [], [], []
     for data_type in ['train', 'test']:
         data_dir = os.path.join(rootdir, data_type)
         for subject_dirname in [x for x in sorted(os.listdir(data_dir)) if 'txt' not in x]:
+            if data_type == 'test':
+                test_subject_idxs_dict[subject_dirname] = []
             subject_dir = os.path.join(data_dir, subject_dirname)
             print(subject_dir)
             for action_dirname in sorted(os.listdir(subject_dir)):
+                if action_dirname not in test_action_idxs_dict:
+                    test_action_idxs_dict[action_dirname] = []
                 action_dir = os.path.join(subject_dir, action_dirname)
                 pose_dir = os.path.join(action_dir, 'camera01')
                 for pose_name in sorted(os.listdir(pose_dir)):
@@ -210,6 +236,9 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(get_gender(subject_dirname))
+                        test_action_idxs_dict[action_dirname].append(idx)
+                        test_subject_idxs_dict[subject_dirname].append(idx)
+                        idx += 1
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
@@ -221,6 +250,11 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
+
+    with open(os.path.join(prepared_dir, 'test_action_idxs_dict.json'), 'w') as fjson:
+        json.dump(test_action_idxs_dict, fjson, indent=4)
+    with open(os.path.join(prepared_dir, 'test_subject_idxs_dict.json'), 'w') as fjson:
+        json.dump(test_subject_idxs_dict, fjson, indent=4)
 
 
 def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0, 
@@ -279,7 +313,8 @@ def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0,
 def init_parser():
     parser = argparse.ArgumentParser(
             description='Prepare datasets for learning.')
-    parser.add_argument('--dataset', type=str,
+    parser.add_argument('--dataset', type=str, 
+            choices=['people3d', 'smpl', 'peta'],
             help='which dataset (directory) to use')
     parser.add_argument('--name', type=str,
             help='name of a prepared dataset (directory)')
