@@ -87,6 +87,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 gender = None
             id_gender_dict[id_] = gender
         
+        # Use any image to extract the dimensions.
         img_path = os.path.join(img_dir, os.listdir(img_dir)[0])
         img_size = get_img_size(img_path)
         for fname in fnames:
@@ -99,7 +100,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
             if gender is not None and np.any(pose_2d):
                 X.append(pose_2d)
                 Y.append(gender)
-                idxs_dict[xdir_name].append(idx)
+                idxs_dict[xdir_name].append((idx, fname))
                 idx += 1
             else:
                 invalid_counter += 1
@@ -206,7 +207,8 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
     train_X, train_Y, test_X, test_Y = [], [], [], []
     for data_type in ['train', 'test']:
         data_dir = os.path.join(rootdir, data_type)
-        for subject_dirname in [x for x in sorted(os.listdir(data_dir)) if 'txt' not in x]:
+        for subject_dirname in [x for x in sorted(
+                os.listdir(data_dir)) if 'txt' not in x]:
             if data_type == 'test':
                 test_subject_idxs_dict[subject_dirname] = []
             subject_dir = os.path.join(data_dir, subject_dirname)
@@ -222,7 +224,8 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                         pose_2d = process_json(pose_path)
                     else:
                         kpts = process_txt(pose_path)
-                        pose_2d = np.array([x[:3] for x in kpts], dtype=np.float32)
+                        pose_2d = np.array([x[:3] for x in kpts], 
+                                dtype=np.float32)
                     pose_2d[:, :2] /= 640.
                     if centered:
                         pose_2d = move_to_center(pose_2d)
@@ -236,8 +239,10 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(get_gender(subject_dirname))
-                        test_action_idxs_dict[action_dirname].append(idx)
-                        test_subject_idxs_dict[subject_dirname].append(idx)
+                        test_action_idxs_dict[action_dirname].append(
+                                (idx, pose_name))
+                        test_subject_idxs_dict[subject_dirname].append(
+                                (idx, pose_name))
                         idx += 1
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)

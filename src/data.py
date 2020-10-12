@@ -168,7 +168,7 @@ class PETA(ClassificationDataset):
                 reverse=reverse)
         top_samples = scores[:num_top]
         for top_sample in top_samples:
-            top_dict[top_sample[3]] = np.abs(x[1] - x[2])
+            top_dict[top_sample[3]] = [x[1], x[2], np.abs(x[1] - x[2])]
             
         with open(os.path.join(self.rootdir,
             f'report_{order}_{num_top}.json'), 'w') as fjson:

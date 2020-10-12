@@ -18,6 +18,9 @@ from const import PELVIS, H36M_KPTS_15, H36M_PARTS_15, KPTS_17, BODY_PARTS_17, \
 #        generate_uniform_projections_torch
 
 
+DATASET_DIR = './dataset/'
+
+
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
@@ -72,16 +75,58 @@ def draw_openpose(json_fpath, img_path):
     cv2.waitKey(0)
 
 
+def show_top(dataset, img_dims, grid_dims, show, show_image, num_top=100):
+    dataset_dir = os.path.join(DATASET_DIR, dataset)
+    best_json = os.path.join(dataset_dir, f'report_best_{num_top}.json')
+    worst_json = os.path.join(dataset_dir, f'report_worst_{num_top}.json')
+    num_samples = int((grid_dims[0] * grid_dims[1]) / 2)
+
+    best_idxs = [x[0] for x in best_json.items()[:num_samples]]
+    worst_idxs = [x[0] for x in worst_json.items()[:num_samples]]
+    idxs = np.array(best_idxs + worst_idxs, dtype=np.uint32)
+    
+    tiles = np.zeros((img_dims[0] * grid_dims[0],
+        img_dims[1] * grid_dims[1]), dtype=np.uint8)
+    if show_image:
+        tiles = load_images(tiles, best_idxs, worst_idxs, grid_dims)
+    tiles = load_kpts(tiles, best_idxs, worst_idxs, grid_dims)
+
+    if show:
+        cv2.imshow('Best/worst result tiles', tiles)
+        cv2.waitKey(0)
+    cv2.imsave(os.path.join(dataset_dir, 'top.png'), tiles)
+
+
+def show_subsets(dataset, mode, grid, show, show_image):
+    dataset_dir = os.path.join(DATASET_DIR, dataset)
+    if mode == 'subset':
+        json_path = os.path.join(dataset_dir, 'test_idxs.json')
+    else:
+        json_path = os.path.join(dataset_dir, f'test_{mode}_idxs.json')
+    num_samples = int((grid_dims[0] * grid_dims[1]) / 2)
+
+    with open(json_path) as fjson:
+        json_data = json.load(fjson)
+    # TODO: For every subset, show samples.
+    for key in json_data:
+        pass
+
+
 def init_parser():
     parser = argparse.ArgumentParser(
             description='Visualize stacked poses and original images.')
     parser.add_argument('--dataset', type=str,
+            choices=['3dpeople', 'peta']
             help='which dataset (directory) to visualize')
-    parser.add_argument('--reports', type=str, nargs='+',
-            choices=['subset', 'action', 'subject', 'best', 'worst']
+    parser.add_argument('--mode', type=str,
+            choices=['subset', 'action', 'subject', 'top']
             help='which reports to visualize')
-    parser.add_argument('--grid', type=int, nargs='+',
+    parser.add_argument('--grid_dims', type=int, nargs='+',
             help='maximal dimensions of the pose grid (X x Y)')
+    parser.add_argument('--img_dims', type=int, nargs='+',
+            help='image dimensions (tiles in the grid)')
+    parser.add_argument('--show', dest='show', action='store_true',
+            help='show (display) the result on the screen')
     parser.add_argument('--show_image', dest='show_image', action='store_true',
             help='use original images as backgrounds')
 
@@ -89,8 +134,21 @@ def init_parser():
     return args
 
 
+def check_args(args):
+    if args.dataset == 'peta' and (args.mode == 'action' or \
+            args.mode == 'subject'):
+        raise Exception('Use SUBSET or TOP mode with PETA dataset.')
+    if args.dataset == '3dpeople' and args.mode == 'subset':
+        raise Exception('Use ACTION, SUBJECT or TOP mode with 3DPeople.')
+    return args
+
+
 if __name__ == '__main__':
-    args = init_parser()
-    for report_type in args.reports:
-        pass
+    args = check_args(init_parser())
+    if args.mode == 'top':
+        show_top(args.dataset, args.img_size, args.grid, args.show, 
+                args.show_image)
+    else:
+        show_subsets(args.dataset, args.img_size, args.mode, args.grid, 
+                args.show, args.show_image)
 
