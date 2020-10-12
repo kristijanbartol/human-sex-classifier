@@ -131,10 +131,14 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
             for in_batch_idx, (output, target) in enumerate(zip(outputs, targets)):
                 output_label = np.argmax(output)
                 target_label = np.argmax(target)
+
+                correct = output_label == target_label
                 confidence = output[output_label]
+                error = abs(float(correct) - confidence)
                 scores[i * batch_size + in_batch_idx] = {
                         'correct': output_label == target_label, 
-                        'confidence': confidence
+                        'confidence': confidence,
+                        'error': error
                 }
 
         # update summary
@@ -158,7 +162,6 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     print('>>> test error: {} <<<'.format(err))
     print('>>> test accuracy: {} <<<'.format(acc)) 
     if inference:
-        print(scores.keys())
         return scores
     else:
         return losses.avg, err, acc
@@ -226,7 +229,7 @@ def main(opt):
 
     set_ = False
     for dataset_name in opt.datasets:
-        if 'peta' == dataset_name:
+        if 'peta' in dataset_name:
             test_dataset = PETA(
                     name=dataset_name,
                     num_kpts=opt.num_kpts, 
@@ -269,7 +272,7 @@ def main(opt):
             max_norm=opt.max_norm)
         loss_test, err_test, acc_test = test(test_loader, model, criterion, 
                 num_kpts=opt.num_kpts, num_classes=opt.num_classes,
-                batch_size=opt.batch_size)
+                batch_size=opt.test_batch)
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,

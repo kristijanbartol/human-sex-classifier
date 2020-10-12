@@ -68,7 +68,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     invalid_counter = 0
     last_idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
-        idxs_dict[xdir_name] = []
+        idxs_dict[xdir_name] = {}
         xdir = os.path.join(openpose_dir, xdir_name)
         print(xdir)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
@@ -113,12 +113,8 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(gender)
-                        idxs_dict[xdir_name].append(
-                                {str(idx + last_idx):
-                                    (fnames[idx],
-                                    img_names[idx])
-                                }
-                        )
+                        idxs_dict[xdir_name][str(idx + last_idx)] = \
+                                    (fnames[idx], img_names[idx])
                 else:
                     invalid_counter += 1
         last_idx += len(fnames)
@@ -240,19 +236,14 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
 
                     if data_type == 'train':
                         train_X.append(pose_2d)
-                        # TODO: Update this to also support identity.
                         train_Y.append(get_gender(subject_dirname))
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(get_gender(subject_dirname))
-                        # TODO: Extract image name.
                         test_action_idxs_dict[action_dirname].append(
-                                {   str(idx): 
-                                    (pose_name,
-                                    img_name)}
-                                )
+                                    (idx, pose_name, img_name))
                         test_subject_idxs_dict[subject_dirname].append(
-                                (idx, pose_name))
+                                (idx, pose_name, img_name))
                         idx += 1
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)

@@ -136,19 +136,20 @@ class PETA(ClassificationDataset):
 
     def __init__(self, name, num_kpts, transforms, data_type):
         super().__init__(name, num_kpts, transforms, data_type)
-        if data_type == 'test':
-            with open(os.path.join(self.rootdir, 
-                'test_idxs_dict.json')) as fjson:
-                self.test_idxs_dict = json.load(fjson)
+#        if data_type == 'test':
+#            with open(os.path.join(self.rootdir, 
+#                'test_idxs_dict.json')) as fjson:
+#                self.test_idxs_dict = json.load(fjson)
 
     def __report(self, scores):
         report_dict = {}
         for subdataset in self.test_idxs_dict:
             error = 0.
             correct_counter = 0
-            for idx in self.test_idxs_dict[subdataset]:
-                error += np.abs(scores[idx][1] - scores[idx][2])
-                correct_counter += scores[idx][0]
+            for idx in [int(x) for x in self.test_idxs_dict[subdataset]]:
+                correct_counter += scores[idx]['correct']
+                confidence += scores[idx]['confidence']
+                error += scores[idx]['error']
             num_samples = len(self.test_idxs_dict[subdataset])
             mean_error = error / num_samples
             accuracy = float(correct_counter) / num_samples
@@ -162,7 +163,7 @@ class PETA(ClassificationDataset):
             f'report_per_subdataset.json'), 'w') as fjson:
             json.dump(report_dict, fjson)
 
-    def __extract_top(self, order, num_top=100):
+    def __extract_top(self, scores, order, num_top=100):
         top_dict = {}
         reverse = False if 'best' else True
         scores = sorted(scores, key=lambda x: np.abs(x[1] - x[2]), 
@@ -177,7 +178,7 @@ class PETA(ClassificationDataset):
 
     def report(self, scores):
         super().report()
-        self.__report(scores)
+        #self.__report(scores)
         self.__extract_top(scores, 'best')
         self.__extract_top(scores, 'worst')
 
