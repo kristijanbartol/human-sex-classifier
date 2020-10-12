@@ -152,6 +152,7 @@ class PETA(ClassificationDataset):
             num_samples = len(self.test_idxs_dict[subdataset])
             mean_error = error / num_samples
             accuracy = float(correct_counter) / num_samples
+            # TODO: Create Metrics and ConfusionMatrix class.
             report_dict[subdataset] = {
                 'error': mean_error,
                 'accuracy': accuracy

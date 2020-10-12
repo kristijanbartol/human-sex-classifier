@@ -245,8 +245,12 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(get_gender(subject_dirname))
+                        # TODO: Extract image name.
                         test_action_idxs_dict[action_dirname].append(
-                                (idx, pose_name))
+                                {   str(idx): 
+                                    (pose_name,
+                                    img_name)}
+                                )
                         test_subject_idxs_dict[subject_dirname].append(
                                 (idx, pose_name))
                         idx += 1

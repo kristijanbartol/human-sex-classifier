@@ -21,7 +21,7 @@ from src.opt import Options
 import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
-from src.data import ToTensor, ClassificationDataset
+from src.data import ToTensor, ClassificationDataset, PETA, People3D
 from src.data_utils import one_hot
 
 
@@ -91,7 +91,8 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
     return glob_step, lr_now, losses.avg, err, acc
 
 
-def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=False):
+def test(test_loader, model, criterion, num_kpts=15, num_classes=2, 
+        batch_size=64, inference=False):
     losses = utils.AverageMeter()
 
     model.eval()
@@ -102,7 +103,7 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
     bar = Bar('>>>', fill='>', max=len(test_loader))
 
     if inference:
-        scores = []
+        scores = {}
 
     for i, sample in enumerate(test_loader):
         inputs = sample['X'].cuda()
@@ -127,10 +128,14 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
         )
 
         if inference:
-            for in_batch_idx, output, target in enumerate(zip(outputs, targets)):
-                is_correct = np.round(output) == target
-                # TODO; Create score class.
-                scores.append((is_correct, output, target, i * batch_size + in_batch_idx))
+            for in_batch_idx, (output, target) in enumerate(zip(outputs, targets)):
+                output_label = np.argmax(output)
+                target_label = np.argmax(target)
+                confidence = output[output_label]
+                scores[i * batch_size + in_batch_idx] = {
+                        'correct': output_label == target_label, 
+                        'confidence': confidence
+                }
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -152,7 +157,11 @@ def test(test_loader, model, criterion, num_kpts=17, num_classes=200, inference=
 
     print('>>> test error: {} <<<'.format(err))
     print('>>> test accuracy: {} <<<'.format(acc)) 
-    return losses.avg, err, acc
+    if inference:
+        print(scores.keys())
+        return scores
+    else:
+        return losses.avg, err, acc
 
 
 def main(opt):
@@ -199,12 +208,18 @@ def main(opt):
 
     train_datasets = []
     for dataset_name in opt.datasets:
-        train_datasets.append(ClassificationDataset(
-            num_kpts=opt.num_kpts,
-            transforms=transforms,
-            dataset=dataset_name,
-            data_type='train')
-        )
+        if 'peta' in dataset_name:
+            train_datasets.append(PETA(
+                name=dataset_name,
+                num_kpts=opt.num_kpts,
+                transforms=transforms,
+                data_type='train'))
+        elif 'people3d' in dataset_name:
+            train_datasets.append(People3D(
+                name=dataset_name,
+                num_kpts=opt.num_kpts,
+                transforms=transforms,
+                data_type='train'))
     train_dataset = ConcatDataset(train_datasets)
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
@@ -212,17 +227,17 @@ def main(opt):
     set_ = False
     for dataset_name in opt.datasets:
         if 'peta' == dataset_name:
-            test_dataset = ClassificationDataset(
+            test_dataset = PETA(
+                    name=dataset_name,
                     num_kpts=opt.num_kpts, 
                     transforms=transforms,
-                    dataset=dataset_name,
                     data_type='test')
             set_ = True
             break
     if not set_:
         for dataset_name in opt.datasets:
             if 'people3d' in dataset_name:
-                test_dataset = ClassificationDataset(
+                test_dataset = People3D(
                         num_kpts=opt.num_kpts, 
                         transforms=transforms,
                         dataset=dataset_name,
@@ -232,7 +247,10 @@ def main(opt):
                         num_workers=opt.job)
 
     if opt.test:
-        loss_test, err_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts, inference=True)
+        scores = test(test_loader, model, 
+                criterion, num_kpts=opt.num_kpts, 
+                num_classes=opt.num_classes, inference=True)
+        test_dataset.report(scores)
         sys.exit()
 
     cudnn.benchmark = True
@@ -245,11 +263,13 @@ def main(opt):
 
         # per epoch
         glob_step, lr_now, loss_train, err_train, acc_train = train(
-            train_loader, model, criterion, optimizer, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
-            lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
+            train_loader, model, criterion, optimizer, num_kpts=opt.num_kpts, 
+            num_classes=opt.num_classes, lr_init=opt.lr, lr_now=lr_now, 
+            glob_step=glob_step, lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
             max_norm=opt.max_norm)
-        loss_test, err_test, acc_test = test(test_loader, model, criterion, num_kpts=opt.num_kpts,
-                num_classes=opt.num_classes)
+        loss_test, err_test, acc_test = test(test_loader, model, criterion, 
+                num_kpts=opt.num_kpts, num_classes=opt.num_classes,
+                batch_size=opt.batch_size)
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,
