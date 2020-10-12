@@ -138,7 +138,7 @@ class PETA(ClassificationDataset):
         super().__init__(name, num_kpts, transforms, data_type)
         if data_type == 'test':
             with open(os.path.join(self.rootdir, 
-                'test_idxs_dict.json') as fjson:
+                'test_idxs_dict.json')) as fjson:
                 self.test_idxs_dict = json.load(fjson)
 
     def __report(self, scores):
@@ -158,7 +158,7 @@ class PETA(ClassificationDataset):
                 # TODO: Add the rest of the confusion matrix.
             }
         with open(os.path.join(self.rootdir, 
-            f'report_per_subdataset.json', 'w')) as fjson:
+            f'report_per_subdataset.json'), 'w') as fjson:
             json.dump(report_dict, fjson)
 
     def __extract_top(self, order, num_top=100):
@@ -171,8 +171,8 @@ class PETA(ClassificationDataset):
             top_dict[top_sample[3]] = [x[1], x[2], np.abs(x[1] - x[2])]
             
         with open(os.path.join(self.rootdir,
-            f'report_{order}_{num_top}.json'), 'w') as fjson:
-                fjson.dump(top_dict, fjson)
+                f'report_{order}_{num_top}.json'), 'w') as fjson:
+            fjson.dump(top_dict, fjson)
 
     def report(self, scores):
         super().report()

@@ -62,15 +62,15 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         img = cv2.imread(img_path)
         return max(img.shape[0], img.shape[1])
 
-    X, Y = [], []
+    train_X, test_X, train_Y, test_Y = [], [], [], []
     idxs_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
     invalid_counter = 0
-    idx = 0
+    last_idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
-        print(xdir_name)
         idxs_dict[xdir_name] = []
         xdir = os.path.join(openpose_dir, xdir_name)
+        print(xdir)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
         fnames = sorted(os.listdir(xdir), key=lambda x: int(x.split('_')[0]))
@@ -87,55 +87,61 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 gender = None
             id_gender_dict[id_] = gender
         
-        # Use any image to extract the dimensions.
-        img_path = os.path.join(img_dir, os.listdir(img_dir)[0])
-        img_size = get_img_size(img_path)
-        for fname in fnames:
-            kpt_path = os.path.join(xdir, fname)
-            pose_2d = process_json(kpt_path)
-            pose_2d[:, :2] /= img_size
-            pose_2d = np.expand_dims(pose_2d, axis=0)
-            subject_id = int(fname.split('.')[0].split('_')[0])
-            gender = id_gender_dict[subject_id]
-            if gender is not None and np.any(pose_2d):
-                X.append(pose_2d)
-                Y.append(gender)
-                idxs_dict[xdir_name].append((idx, fname))
-                idx += 1
-            else:
-                invalid_counter += 1
+        img_ext = os.listdir(img_dir)[0].split('.')[1]
+        img_names = [x.replace('_keypoints.json', f'.{img_ext}') \
+                for x in fnames]
+        img_size = get_img_size(os.path.join(img_dir, img_names[0]))
+
+        train_idxs = np.random.choice(
+                len(fnames), int(len(fnames) * train_ratio), replace=False)
+        test_idxs = np.arange(len(fnames))
+        test_idxs = np.delete(test_idxs, train_idxs, axis=0)
+        idxs = { 'train': train_idxs, 'test': test_idxs }
+
+        for data_key in idxs:
+            for idx in idxs[data_key]: 
+                kpt_path = os.path.join(xdir, fnames[idx])
+                pose_2d = process_json(kpt_path)
+                pose_2d[:, :2] /= img_size
+                pose_2d = np.expand_dims(pose_2d, axis=0)
+                subject_id = int(fnames[idx].split('.')[0].split('_')[0])
+                gender = id_gender_dict[subject_id]
+                if gender is not None and np.any(pose_2d):
+                    if data_key == 'train':
+                        train_X.append(pose_2d)
+                        train_Y.append(gender)
+                    else:
+                        test_X.append(pose_2d)
+                        test_Y.append(gender)
+                        idxs_dict[xdir_name].append(
+                                {str(idx + last_idx):
+                                    (fnames[idx],
+                                    img_names[idx])
+                                }
+                        )
+                else:
+                    invalid_counter += 1
+        last_idx += len(fnames)
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
-    X = np.array(X, dtype=np.float32)
-    Y = np.array(Y, dtype=np.long)
 
-    train_idxs = np.random.choice(X.shape[0], int(train_ratio*X.shape[0]))
-    # NOTE: Test indexes are regenerated every time, so might get different results.
-    test_idxs = np.ones(X.shape[0], dtype=np.bool)
-    test_idxs[train_idxs] = False
-    train_X, test_X = X[train_idxs], X[test_idxs]
-    train_Y, test_Y = Y[train_idxs], Y[test_idxs]
+    train_X = np.array(train_X, dtype=np.float32)
+    train_Y = np.array(train_Y, dtype=np.long)
+    test_X  = np.array(test_X, dtype=np.float32)
+    test_Y  = np.array(test_Y, dtype=np.long)
+
     np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
     with open(os.path.join(prepared_dir, 'test_idxs_dict.json'), 'w') as fjson:
-        # Need to select only the test set idxs for the dict.
-        test_idxs_dict = {}
-        for test_idx in test_idxs:
-            for key in idxs_dict:
-                if test_idx in idxs_dict[key]:
-                    if key in test_idxs_dict:
-                        test_idxs_dict[key].append(test_idx)
-                    else:
-                        test_idxs_dict[key] = [test_idx]
-                    break
-        json.dump(test_idxs_dict, fjson)
+        json.dump(idxs_dict, fjson, indent=4)
 
     print(f'Number of invalid samples: {invalid_counter}')
-    print(f'Total number of samples: {invalid_counter + X.shape[0]}')
+    print(f'Total number of samples: \
+            {invalid_counter + train_X.shape[0] + test_X.shape[0]}')
 
 
 def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0, 
