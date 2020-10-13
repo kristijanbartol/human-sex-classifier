@@ -22,7 +22,7 @@ from src.opt import Options
 import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
-from src.data import ToTensor, ClassificationDataset, PETA, People3D
+from src.data import ToTensor, ClassificationDataset
 from src.data_utils import one_hot
 
 

@@ -81,7 +81,7 @@ class Options:
         if self.opt.load:
             if not os.path.isfile(self.opt.load):
                 print ("{} is not found".format(self.opt.load))
-        self.opt.datasets = self.opt.datasets.split(',')
+        self.opt.train_datasets = self.opt.train_datasets.split(',')
         self.opt.is_train = False if self.opt.test else True
         self.opt.ckpt = ckpt
         self._print()

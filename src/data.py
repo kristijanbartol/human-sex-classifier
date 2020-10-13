@@ -55,7 +55,7 @@ class SubsetData(object):
     def create_subsets(dataset_dir):
         npy_files = [x for x in os.listdir(dataset_dir) \
                 if 'train' not in x and 'test' not in x]
-        subset_names [x.split('_')[0] for x in npy_files]
+        subset_names = [x.split('_')[0] for x in npy_files]
         subsets = []
         for name in subset_names:
             basepath = os.path.join(dataset_dir, name)
@@ -64,6 +64,8 @@ class SubsetData(object):
             X = np.load(xpath)
             Y = np.load(ypath)
             subsets.append(SubsetData(name, X, Y))
+        if len(subsets) == 0:
+            print('WARNING: Zero subsets, prepare the dataset!')
         return subsets
 
 
@@ -73,7 +75,7 @@ class ClassificationDataset(Dataset):
         self.name = name
         self.num_kpts = num_kpts
         self.transforms = transforms
-        self.data_type = data_type
+        self.split = split
         self.rootdir = f'./dataset/{name}/'
         
         print(f'>>> loading {name}/{split} dataset')
@@ -91,12 +93,6 @@ class ClassificationDataset(Dataset):
 
     def __load_subsets(self):
         return SubsetData.create_subsets(self.rootdir)
-        npy_files = [x for x in os.listdir(self.rootdir) \
-                if 'train' not in x and 'test' not in x]
-        npy_paths = [os.path.join(self.rootdir, x) for x in npy_file]
-        subsets = []
-        for npy_path in npy_paths:
-            subsets.append(SubsetData(npy_path))
 
     def __len__(self):
         return self.num_samples
