@@ -15,6 +15,7 @@ import torch.optim
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.resnet import ResNet, BasicBlock, Bottleneck
 
 from src.opt import Options
@@ -175,12 +176,15 @@ def main(opt):
 
     # save options
     log.save_options(opt, opt.ckpt)
-
+    writer = SummaryWriter()
     exp_dir_ = dirname(opt.load)
 
     # create model
     print(">>> creating model")
     model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
+    # TODO: This is how to avoid weird data reshaping for non-3-channel inputs.
+    # Have ResNet model take in grayscale rather than RGB
+#    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
@@ -301,7 +305,15 @@ def main(opt):
                           ckpt_path=opt.ckpt,
                           is_best=False)
 
+        writer.add_scalar('Loss/train', loss_train)
+        writer.add_scalar('Loss/test', loss_test)
+        writer.add_scalar('Error/train', err_train)
+        writer.add_scalar('Error/test', err_test)
+        writer.add_scalar('Accuracy/train', acc_train)
+        writer.add_scalar('Accuracy/test', acc_test)
+
     logger.close()
+    writer.close()
 
 
 if __name__ == '__main__':
