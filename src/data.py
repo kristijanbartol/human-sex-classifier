@@ -44,19 +44,30 @@ class ToTensor(object):
 
 class ClassificationDataset(Dataset):
 
-    def __init__(self, name, num_kpts, transforms, data_type):
+    def __init__(self, name, num_kpts, transforms, split):
+        '''
+        Creates a classification dataset.
+
+        A ClassificationDataset is a generic dataset for
+        all dataset types and splits (subsets).
+
+        :name: dataset name (directory)
+        :num_kpts: number of keypoints to use
+        :transforms: a list of transforms
+        :split: either train/test or subset (e.g. action)
+        '''
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.data_type = data_type
         self.rootdir = f'./dataset/{name}/'
         
-        print(f'>>> loading {name} ({data_type}) dataset')
+        print(f'>>> loading {name}/{split} dataset')
 
-        self.Y = np.load(os.path.join(self.rootdir, f'{data_type}_Y.npy'))
+        self.Y = np.load(os.path.join(self.rootdir, f'{split}_Y.npy'))
 
         # TODO: Add different keypoints sets for different datasets.
         kpts_set = kpts_dict[num_kpts]
-        self.X = np.load(os.path.join(self.rootdir, f'{data_type}_X.npy'))
+        self.X = np.load(os.path.join(self.rootdir, f'{split}_X.npy'))
         self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
@@ -66,7 +77,6 @@ class ClassificationDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        # TODO: Might not need flatten() here.
         sample = {'X': self.X[idx], 'Y': self.Y[idx].flatten()}
         if self.transforms:
             for transform in self.transforms:
