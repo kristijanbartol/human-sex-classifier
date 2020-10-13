@@ -105,9 +105,6 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     batch_time = 0
     bar = Bar('>>>', fill='>', max=len(test_loader))
 
-    if inference:
-        scores = {}
-
     for i, sample in enumerate(test_loader):
         inputs = sample['X'].cuda()
         targets = sample['Y'].reshape(-1).cuda()
@@ -132,20 +129,6 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
         )
         confs.append(np.mean(output[np.argmax(output, axis=1)]))
 
-        if inference:
-            for in_batch_idx, (output, target) in enumerate(zip(outputs, targets)):
-                output_label = np.argmax(output)
-                target_label = np.argmax(target)
-
-                correct = output_label == target_label
-                confidence = output[output_label]
-                error = abs(float(correct) - confidence)
-                scores[i * batch_size + in_batch_idx] = {
-                        'correct': output_label == target_label, 
-                        'confidence': confidence,
-                        'error': error
-                }
-
         # update summary
         if (i + 1) % 100 == 0:
             batch_time = time.time() - start
@@ -167,10 +150,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
     print('>>> test error: {} <<<'.format(err))
     print('>>> test accuracy: {} <<<'.format(acc)) 
-    if inference:
-        return scores
-    else:
-        return losses.avg, err, acc, conf
+    return losses.avg, err, acc, conf
 
 
 def main(opt):
@@ -259,6 +239,7 @@ def main(opt):
                         num_workers=opt.job)
 
     if opt.test:
+        # TODO: This is currently broken.
         scores = test(test_loader, model, 
                 criterion, num_kpts=opt.num_kpts, 
                 num_classes=opt.num_classes, inference=True)
@@ -268,7 +249,6 @@ def main(opt):
     cudnn.benchmark = True
 
     for epoch in range(start_epoch, opt.epochs):
-        # These epochs are set to decrease the num
         torch.cuda.empty_cache()
         print('==========================')
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))
