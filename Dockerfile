@@ -25,7 +25,9 @@ RUN pip3 install numpy \
     pandas \
     progress \
     h5py \
-    opencv-python
+    opencv-python \
+    tensorflow \
+    tensorboard>=1.15
 
 RUN pip3 install --pre torch torchvision \
     -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
