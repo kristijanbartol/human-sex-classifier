@@ -33,7 +33,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
 
     model.train()
 
-    errs, accs = [], []
+    errs, accs, confs = [], [], []
     start = time.time()
     batch_time = 0
     bar = Bar('>>>', fill='>', max=len(train_loader))
@@ -69,6 +69,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
             np.argmax(targets, axis=1),
             np.argmax(outputs, axis=1))
         )
+        confs.append(np.mean(output[np.argmax(output, axis=1)]))
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -87,9 +88,10 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
 
     err = np.mean(np.array(errs, dtype=np.float32))
     acc = np.mean(np.array(accs, dtype=np.float32))
+    conf = np.mean(np.array(confs, dtype=np.float32))
     print (">>> train error: {} <<<".format(err))
     print (">>> train accuracy: {} <<<".format(acc))
-    return glob_step, lr_now, losses.avg, err, acc
+    return glob_step, lr_now, losses.avg, err, acc, conf
 
 
 def test(test_loader, model, criterion, num_kpts=15, num_classes=2, 
@@ -98,7 +100,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
     model.eval()
 
-    errs, accs = [], []
+    errs, accs, confs = [], [], []
     start = time.time()
     batch_time = 0
     bar = Bar('>>>', fill='>', max=len(test_loader))
@@ -122,11 +124,13 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
         outputs = outputs.data.cpu().numpy()
         targets = one_hot(targets.data.cpu().numpy(), num_classes)
 
+        # TODO: This is not completely correct (per batch).
         errs.append(np.mean(np.abs(outputs - targets)))
         accs.append(accuracy_score(
             np.argmax(targets, axis=1),
             np.argmax(outputs, axis=1))
         )
+        confs.append(np.mean(output[np.argmax(output, axis=1)]))
 
         if inference:
             for in_batch_idx, (output, target) in enumerate(zip(outputs, targets)):
@@ -158,6 +162,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
     err = np.mean(np.array(errs))
     acc = np.mean(np.array(accs))
+    conf = np.mean(np.array(confs))
     bar.finish()
 
     print('>>> test error: {} <<<'.format(err))
@@ -165,7 +170,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     if inference:
         return scores
     else:
-        return losses.avg, err, acc
+        return losses.avg, err, acc, conf
 
 
 def main(opt):
@@ -269,13 +274,14 @@ def main(opt):
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))
 
         # per epoch
-        glob_step, lr_now, loss_train, err_train, acc_train = train(
-            train_loader, model, criterion, optimizer, num_kpts=opt.num_kpts, 
-            num_classes=opt.num_classes, lr_init=opt.lr, lr_now=lr_now, 
-            glob_step=glob_step, lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
-            max_norm=opt.max_norm)
-        loss_test, err_test, acc_test = test(test_loader, model, criterion, 
-                num_kpts=opt.num_kpts, num_classes=opt.num_classes,
+        glob_step, lr_now, loss_train, err_train, acc_train, conf_train = \
+                train(train_loader, model, criterion, optimizer, 
+                        num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
+                        lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, 
+                        lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
+                        max_norm=opt.max_norm)
+        loss_test, err_test, acc_test, conf_test = test(test_loader, model, 
+                criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
                 batch_size=opt.test_batch)
 
         # update log file
@@ -311,6 +317,8 @@ def main(opt):
         writer.add_scalar('Error/test', err_test)
         writer.add_scalar('Accuracy/train', acc_train)
         writer.add_scalar('Accuracy/test', acc_test)
+        writer.add_scalar('Confidence/train', conf_train)
+        writer.add_scalar('Confidence/test', conf_test)
 
     logger.close()
     writer.close()
