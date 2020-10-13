@@ -221,6 +221,11 @@ def main(opt):
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         num_workers=opt.job)
 
+    subset_loaders = {}
+    for subset in test_dataset.subsets:
+        subset_loaders[subset.name] = 
+                DataLoader(subset, batch_size=4, num_workers=opt.job))
+
     if opt.test:
         # TODO: This is currently broken.
         scores = test(test_loader, model, 
@@ -246,6 +251,17 @@ def main(opt):
         loss_test, err_test, acc_test, conf_test = test(test_loader, model, 
                 criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
                 batch_size=opt.test_batch)
+
+        subset_losses = {}
+        subset_errs = {}
+        subset_accs = {}
+        for key in subset_loaders:
+            loss_sub, err_sub, acc_sub, _ = test(subset_loaders[key], model,
+                    criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
+                    batch_size=4)
+            subset_losses[key] = loss_sub
+            subset_errs[key] = err_sub
+            subset_accs[key] = acc_sub
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,

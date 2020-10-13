@@ -42,7 +42,7 @@ class ToTensor(object):
         return torch_sample
 
 
-class SubsetData(object):
+class SubsetData(Dataset):
 
     def __init__(self, name, X, Y):
         self.name = name
@@ -56,17 +56,27 @@ class SubsetData(object):
         npy_files = [x for x in os.listdir(dataset_dir) \
                 if 'train' not in x and 'test' not in x]
         subset_names = [x.split('_')[0] for x in npy_files]
-        subsets = {}
+        subsets = []
         for name in subset_names:
             basepath = os.path.join(dataset_dir, name)
             xpath = f'{basepath}_X.npy'
             ypath = f'{basepath}_Y.npy'
             X = np.load(xpath)
             Y = np.load(ypath)
-            subsets[name] = SubsetData(name, X, Y)
+            subsets.append(SubsetData(name, X, Y))
         if len(subsets) == 0:
             print('WARNING: Zero subsets, prepare the dataset!')
         return subsets
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        sample = {'X': self.X[idx], 'Y': self.Y[idx].flatten()}
+        if self.transforms:
+            for transform in self.transforms:
+                transform(sample)
+        return sample
 
 
 class ClassificationDataset(Dataset):
