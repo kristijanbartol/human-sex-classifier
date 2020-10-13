@@ -176,7 +176,7 @@ def main(opt):
 
     # save options
     log.save_options(opt, opt.ckpt)
-    writer = SummaryWriter()
+    writer = SummaryWriter(log_dir=f'./exp/{opt.name}')
     exp_dir_ = dirname(opt.load)
 
     # create model
