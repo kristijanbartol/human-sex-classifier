@@ -15,17 +15,19 @@ RUN apt-get update \
 	libxrender-dev \
 	parallel \
 	imagemagick
+RUN pip3 install scikit-build
 RUN pip3 install numpy \
 #    torch \
 #    torchvision \
     matplotlib \
     scikit-learn \
     scikit-image \
-    scikit-build \
     pandas \
     progress \
-    h5py
-    opencv-python
+    h5py \
+    opencv-python \
+    tensorflow \
+    tensorboard>=1.15
 
 RUN pip3 install --pre torch torchvision \
     -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
