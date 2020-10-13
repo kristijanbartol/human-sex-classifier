@@ -44,6 +44,9 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
             lr_now = utils.lr_decay(optimizer, glob_step, lr_init, lr_decay, gamma)
 
         inputs = sample['X'].cuda()
+        # NOTE: PyTorch issue with dim0=1.
+        if inputs.shape[0] == 1:
+            continue
         targets = sample['Y'].reshape(-1).cuda()
 
         outputs = model(inputs)
