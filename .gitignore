@@ -8,5 +8,9 @@ dataset/3dpeople/*
 checkpoint/
 
 
+## Bash $$
+sh/copy.sh
+
+
 ## Python-specific ##
 __pycache__/
