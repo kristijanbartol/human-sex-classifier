@@ -24,6 +24,8 @@ DATASET_DIR = './dataset/'
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
+GRID_SIZE = 100
+
 
 def draw_keypoints(kpts_2d, h, w):
     img = np.zeros((h, w, 3), np.uint8)
@@ -75,72 +77,35 @@ def draw_openpose(json_fpath, img_path):
     cv2.waitKey(0)
 
 
-def show_top(dataset, img_dims, grid_dims, show, show_image, num_top=100):
-    dataset_dir = os.path.join(DATASET_DIR, dataset)
-    best_json = os.path.join(dataset_dir, f'report_best_{num_top}.json')
-    worst_json = os.path.join(dataset_dir, f'report_worst_{num_top}.json')
-    num_samples = int((grid_dims[0] * grid_dims[1]) / 2)
+def draw_img(pose_2d_hom, orig_img=None):
+    pose_2d = np.delete(pose_2d_hom, np.arange(2, pose_2d_hom.size, 3))
+    pose_2d *= GRID_SIZE
 
-    best_idxs = [x[0] for x in best_json.items()[:num_samples]]
-    worst_idxs = [x[0] for x in worst_json.items()[:num_samples]]
-    idxs = np.array(best_idxs + worst_idxs, dtype=np.uint32)
-    
-    tiles = np.zeros((img_dims[0] * grid_dims[0],
-        img_dims[1] * grid_dims[1]), dtype=np.uint8)
-    if show_image:
-        tiles = load_images(tiles, best_idxs, worst_idxs, grid_dims)
-    tiles = load_kpts(tiles, best_idxs, worst_idxs, grid_dims)
+    img = np.zeros((GRID_SIZE, GRID_SIZE, 3), dtype=np.uint8)
+    for idx in range(int(pose_2d.shape[0] / 2)):
+        coord = (pose_2d[idx*2], pose_2d[idx*2+1])
+        img = cv2.circle(img, coord, radius=1, color=(0, 255, 0), thickness=-1)
 
-    if show:
-        cv2.imshow('Best/worst result tiles', tiles)
-        cv2.waitKey(0)
-    cv2.imsave(os.path.join(dataset_dir, 'top.png'), tiles)
+    for part in OPENPOSE_PARTS_15:
+        start_point = (pose_2d[part[0]*2], pose_2d[part[0]*2+1])
+        end_point = (pose_2d[part[1]*2], pose_2d[part[1]*2+1])
+        img = cv2.line(img, start_point, end_point, (255, 0, 0), thickness=1)
+
+    return img
 
 
-def show_subsets(dataset, mode, grid, show, show_image):
-    dataset_dir = os.path.join(DATASET_DIR, dataset)
-    if mode == 'subset':
-        json_path = os.path.join(dataset_dir, 'test_idxs.json')
-    else:
-        json_path = os.path.join(dataset_dir, f'test_{mode}_idxs.json')
-    num_samples = int((grid_dims[0] * grid_dims[1]) / 2)
+def create_grid(kpt_array, show_image):
+    num_rows = kpt_array.shape[0] // 8
+    img_grid = np.zeros((num_rows * 8, 3, GRID_SIZE, GRID_SIZE))
 
-    with open(json_path) as fjson:
-        json_data = json.load(fjson)
-    # TODO: For every subset, show samples.
-    for key in json_data:
-        pass
+    for kpts_idx, kpts in enumerate(kpt_array):
+        # TODO: Implement original image as a background.
+        img = draw_img(kpts)
+        h = kpts_idx // 8
+        w = kpts_idx % 8
+        img_grid[h][w] = img
 
-
-def init_parser():
-    parser = argparse.ArgumentParser(
-            description='Visualize stacked poses and original images.')
-    parser.add_argument('--dataset', type=str,
-            choices=['3dpeople', 'peta']
-            help='which dataset (directory) to visualize')
-    parser.add_argument('--mode', type=str,
-            choices=['subset', 'action', 'subject', 'top']
-            help='which reports to visualize')
-    parser.add_argument('--grid_dims', type=int, nargs='+',
-            help='maximal dimensions of the pose grid (X x Y)')
-    parser.add_argument('--img_dims', type=int, nargs='+',
-            help='image dimensions (tiles in the grid)')
-    parser.add_argument('--show', dest='show', action='store_true',
-            help='show (display) the result on the screen')
-    parser.add_argument('--show_image', dest='show_image', action='store_true',
-            help='use original images as backgrounds')
-
-    args = parser.parse_args()
-    return args
-
-
-def check_args(args):
-    if args.dataset == 'peta' and (args.mode == 'action' or \
-            args.mode == 'subject'):
-        raise Exception('Use SUBSET or TOP mode with PETA dataset.')
-    if args.dataset == '3dpeople' and args.mode == 'subset':
-        raise Exception('Use ACTION, SUBJECT or TOP mode with 3DPeople.')
-    return args
+    return img_grid
 
 
 if __name__ == '__main__':
