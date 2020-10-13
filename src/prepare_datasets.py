@@ -63,14 +63,14 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         return max(img.shape[0], img.shape[1])
 
     train_X, test_X, train_Y, test_Y = [], [], [], []
-    idxs_dict = {}
+    subdir_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
     invalid_counter = 0
     last_idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
-        idxs_dict[xdir_name] = {}
+        print(xdir_name)
+        subdir_dict[xdir_name] = { 'X' : [], 'Y': [] }
         xdir = os.path.join(openpose_dir, xdir_name)
-        print(xdir)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
         fnames = sorted(os.listdir(xdir), key=lambda x: int(x.split('_')[0]))
@@ -98,8 +98,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         test_idxs = np.delete(test_idxs, train_idxs, axis=0)
         idxs = { 'train': train_idxs, 'test': test_idxs }
 
-        for data_key in idxs:
-            for idx in idxs[data_key]: 
+        for idx in range(len(fnames)):
                 kpt_path = os.path.join(xdir, fnames[idx])
                 pose_2d = process_json(kpt_path)
                 pose_2d[:, :2] /= img_size
@@ -107,17 +106,16 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 subject_id = int(fnames[idx].split('.')[0].split('_')[0])
                 gender = id_gender_dict[subject_id]
                 if gender is not None and np.any(pose_2d):
-                    if data_key == 'train':
+                    if idx < 0.8 * len(fnames):
                         train_X.append(pose_2d)
                         train_Y.append(gender)
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(gender)
-                        idxs_dict[xdir_name][str(idx + last_idx)] = \
-                                    (fnames[idx], img_names[idx])
+                        subdir_dict[xdir_name]['X'].append(pose_2d)
+                        subdir_dict[xdir_name]['Y'].append(gender)
                 else:
                     invalid_counter += 1
-        last_idx += len(fnames)
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
@@ -127,13 +125,20 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     test_X  = np.array(test_X, dtype=np.float32)
     test_Y  = np.array(test_Y, dtype=np.long)
 
+    for subdir_key in subdir_dict:
+        subdir_dict[subdir_key]['X'] = np.array(
+                subdir_dict[subdir_key]['X'], dtype=np.float32)
+        subdir_dict[subdir_key]['Y'] = np.array(
+                subdir_dict[subdir_key]['Y'], dtype=np.float32)
+        np.save(os.path.join(prepared_dir, f'{subdir_key}_X.npy'), 
+                subdir_dict[subdir_key]['X'])
+        np.save(os.path.join(prepared_dir, f'{subdir_key}_Y.npy'), 
+                subdir_dict[subdir_key]['Y'])
+
     np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
-
-    with open(os.path.join(prepared_dir, 'test_idxs_dict.json'), 'w') as fjson:
-        json.dump(idxs_dict, fjson, indent=4)
 
     print(f'Number of invalid samples: {invalid_counter}')
     print(f'Total number of samples: \
