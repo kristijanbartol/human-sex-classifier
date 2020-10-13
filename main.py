@@ -69,7 +69,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
             np.argmax(targets, axis=1),
             np.argmax(outputs, axis=1))
         )
-        confs.append(np.mean(output[np.argmax(output, axis=1)]))
+        confs.append(np.mean(outputs[np.argmax(outputs, axis=1)]))
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -127,7 +127,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
             np.argmax(targets, axis=1),
             np.argmax(outputs, axis=1))
         )
-        confs.append(np.mean(output[np.argmax(output, axis=1)]))
+        confs.append(np.mean(outputs[np.argmax(outputs, axis=1)]))
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -291,14 +291,14 @@ def main(opt):
                           ckpt_path=opt.ckpt,
                           is_best=False)
 
-        writer.add_scalar('Loss/train', loss_train)
-        writer.add_scalar('Loss/test', loss_test)
-        writer.add_scalar('Error/train', err_train)
-        writer.add_scalar('Error/test', err_test)
-        writer.add_scalar('Accuracy/train', acc_train)
-        writer.add_scalar('Accuracy/test', acc_test)
-        writer.add_scalar('Confidence/train', conf_train)
-        writer.add_scalar('Confidence/test', conf_test)
+        writer.add_scalar('Loss/train', loss_train, epoch)
+        writer.add_scalar('Loss/test', loss_test, epoch)
+        writer.add_scalar('Error/train', err_train, epoch)
+        writer.add_scalar('Error/test', err_test, epoch)
+        writer.add_scalar('Accuracy/train', acc_train, epoch)
+        writer.add_scalar('Accuracy/test', acc_test, epoch)
+        writer.add_scalar('Confidence/train', conf_train, epoch)
+        writer.add_scalar('Confidence/test', conf_test, epoch)
 
     logger.close()
     writer.close()
