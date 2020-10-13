@@ -4,6 +4,7 @@ WORKDIR /gender-classifier/
 
 RUN apt-get update \
     && apt-get install -y \
+	cmake \
         python3-pip \
         vim \
         unzip \
@@ -20,10 +21,11 @@ RUN pip3 install numpy \
     matplotlib \
     scikit-learn \
     scikit-image \
+    scikit-build \
     pandas \
     progress \
     h5py
-#    opencv-python
+    opencv-python
 
 RUN pip3 install --pre torch torchvision \
     -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
