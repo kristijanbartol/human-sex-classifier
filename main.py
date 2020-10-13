@@ -199,41 +199,21 @@ def main(opt):
     ]
 
     train_datasets = []
-    for dataset_name in opt.datasets:
-        if 'peta' in dataset_name:
-            train_datasets.append(PETA(
-                name=dataset_name,
-                num_kpts=opt.num_kpts,
-                transforms=transforms,
-                data_type='train'))
-        elif 'people3d' in dataset_name:
-            train_datasets.append(People3D(
-                name=dataset_name,
-                num_kpts=opt.num_kpts,
-                transforms=transforms,
-                data_type='train'))
+    for dataset_name in opt.train_datasets:
+        train_datasets.append(ClassificationDataset(
+            name=dataset_name,
+            num_kpts=opt.num_kpts,
+            transforms=transforms,
+            split='train'))
     train_dataset = ConcatDataset(train_datasets)
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
 
-    set_ = False
-    for dataset_name in opt.datasets:
-        if 'peta' in dataset_name:
-            test_dataset = PETA(
-                    name=dataset_name,
-                    num_kpts=opt.num_kpts, 
-                    transforms=transforms,
-                    data_type='test')
-            set_ = True
-            break
-    if not set_:
-        for dataset_name in opt.datasets:
-            if 'people3d' in dataset_name:
-                test_dataset = People3D(
-                        num_kpts=opt.num_kpts, 
-                        transforms=transforms,
-                        dataset=dataset_name,
-                        data_type='test')
+    test_dataset = ClassificationDataset(
+            name=opt.test_dataset,
+            num_kpts=opt.num_kpts, 
+            transforms=transforms,
+            split='test')
 
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         num_workers=opt.job)

@@ -47,7 +47,8 @@ class Options:
         # ===============================================================
         self.parser.add_argument('--max_norm',       dest='max_norm', action='store_true', help='maxnorm constraint to weights')
         self.parser.add_argument('--num_kpts',       type=int, default=15, help='# pose keypoints')
-        self.parser.add_argument('--datasets',       type=str, default='gender', help='which datasets to use')
+        self.parser.add_argument('--train_datasets', type=str, default='peta-openpose', help='which train datasets to use')
+        self.parser.add_argument('--test_dataset',   type=str, default='peta-openpose', help='which test set to use')
         self.parser.add_argument('--num_classes',   type=int, default=2, help='# of possible classification classes')
 
         # ===============================================================
