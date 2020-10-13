@@ -20,7 +20,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-kpts_dict = {
+KPTS_DICT = {
         15: SMPL_KPTS_SUB_15,
         11: SMPL_KPTS_SUB_11,
         10: SMPL_KPTS_SUB_10,
@@ -42,20 +42,35 @@ class ToTensor(object):
         return torch_sample
 
 
+class SubsetData(object):
+
+    def __init__(self, name, X, Y):
+        self.name = name
+        self.X = X
+        self.Y = Y
+        # TODO
+        self.img_paths = None
+
+    @staticmethod
+    def create_subsets(dataset_dir):
+        npy_files = [x for x in os.listdir(dataset_dir) \
+                if 'train' not in x and 'test' not in x]
+        subset_names [x.split('_')[0] for x in npy_files]
+        subsets = []
+        for name in subset_names:
+            basepath = os.path.join(dataset_dir, name)
+            xpath = f'{basepath}_X.npy'
+            ypath = f'{basepath}_Y.npy'
+            X = np.load(xpath)
+            Y = np.load(ypath)
+            subsets.append(SubsetData(name, X, Y))
+        return subsets
+
+
 class ClassificationDataset(Dataset):
 
     def __init__(self, name, num_kpts, transforms, split):
-        '''
-        Creates a classification dataset.
-
-        A ClassificationDataset is a generic dataset for
-        all dataset types and splits (subsets).
-
-        :name: dataset name (directory)
-        :num_kpts: number of keypoints to use
-        :transforms: a list of transforms
-        :split: either train/test or subset (e.g. action)
-        '''
+        self.name = name
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.data_type = data_type
@@ -66,12 +81,22 @@ class ClassificationDataset(Dataset):
         self.Y = np.load(os.path.join(self.rootdir, f'{split}_Y.npy'))
 
         # TODO: Add different keypoints sets for different datasets.
-        kpts_set = kpts_dict[num_kpts]
+        kpts_set = KPTS_DICT[num_kpts]
         self.X = np.load(os.path.join(self.rootdir, f'{split}_X.npy'))
         self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]
+        self.subsets = self.__load_subsets()
+
+    def __load_subsets(self):
+        return SubsetData.create_subsets(self.rootdir)
+        npy_files = [x for x in os.listdir(self.rootdir) \
+                if 'train' not in x and 'test' not in x]
+        npy_paths = [os.path.join(self.rootdir, x) for x in npy_file]
+        subsets = []
+        for npy_path in npy_paths:
+            subsets.append(SubsetData(npy_path))
 
     def __len__(self):
         return self.num_samples
