@@ -25,8 +25,7 @@ DATASET_DIR = './dataset/'
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
-GRID_SIZE = 100
-NUM_COLUMNS = 8
+GRID_SIZE = 200
 
 
 def draw_keypoints(kpts_2d, h, w):
@@ -79,19 +78,22 @@ def draw_openpose(json_fpath, img_path):
     cv2.waitKey(0)
 
 
-def draw_img(pose_2d_hom, orig_img=None):
-    pose_2d = np.delete(pose_2d_hom, np.arange(2, pose_2d_hom.size, 3))
+### USED IN MAIN ###
+
+def draw_img(pose_2d, orig_img=None):
+    pose_2d = pose_2d[:, :2]
     pose_2d *= GRID_SIZE
 
     img = np.zeros((GRID_SIZE, GRID_SIZE, 3), dtype=np.uint8)
-    for idx in range(int(pose_2d.shape[0] / 2)):
-        coord = (pose_2d[idx*2], pose_2d[idx*2+1])
-        img = cv2.circle(img, coord, radius=1, color=(0, 255, 0), thickness=-1)
+    for kpt in pose_2d:
+        img = cv2.circle(img, tuple(kpt), radius=1, 
+                color=(0, 255, 0), thickness=-1)
 
     for part in OPENPOSE_PARTS_15:
-        start_point = (pose_2d[part[0]*2], pose_2d[part[0]*2+1])
-        end_point = (pose_2d[part[1]*2], pose_2d[part[1]*2+1])
-        img = cv2.line(img, start_point, end_point, (255, 0, 0), thickness=1)
+        start_point = tuple(pose_2d[part[0]])
+        end_point = tuple(pose_2d[part[1]])
+        img = cv2.line(img, start_point, end_point, 
+                (255, 0, 0), thickness=1)
 
     return img
 
@@ -99,7 +101,7 @@ def draw_img(pose_2d_hom, orig_img=None):
 def create_grid(kpt_array, show_image=False):
     img_grid = np.zeros((kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3))
     kpt_array = np.squeeze(kpt_array, axis=3)
-    kpt_array = kpt_array.reshape((-1, 15, 3))
+    kpt_array = np.swapaxes(kpt_array, 1, 2)
 
     for kpts_idx, kpts in enumerate(kpt_array):
         # TODO: Implement original image as a background.
@@ -109,13 +111,9 @@ def create_grid(kpt_array, show_image=False):
     img_grid = np.swapaxes(img_grid, 1, 3)
     return img_grid
 
+####################
+
 
 if __name__ == '__main__':
-    args = check_args(init_parser())
-    if args.mode == 'top':
-        show_top(args.dataset, args.img_size, args.grid, args.show, 
-                args.show_image)
-    else:
-        show_subsets(args.dataset, args.img_size, args.mode, args.grid, 
-                args.show, args.show_image)
+    pass
 

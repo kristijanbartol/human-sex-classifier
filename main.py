@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import, division
 
 import os
+import shutil
 from os.path import join, dirname
 import sys
 import time
@@ -176,6 +177,9 @@ def main(opt):
 
     # save options
     log.save_options(opt, opt.ckpt)
+    tb_logdir = f'./exp/{opt.name}'
+    if os.path.exists(tb_logdir):
+        shutil.rmtree(tb_logdir)
     writer = SummaryWriter(log_dir=f'./exp/{opt.name}')
     exp_dir_ = dirname(opt.load)
 
@@ -282,7 +286,7 @@ def main(opt):
             subset_accs[key]   = acc_sub
             subset_confs[key]  = conf_sub
             subset_grids[key]  = create_grid(sample_input)
-            bar.suffix = f'({key_idx+1}/{len(subset_loaders)})'
+            bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
             bar.next()
         if len(subset_loaders) > 0:
             bar.finish()
@@ -332,7 +336,10 @@ def main(opt):
                     subset_accs[key], epoch)
             writer.add_scalar(f'Confidence/Subsets/{key}',
                     subset_confs[key], epoch)
-            writer.add_images(key, subset_grids[key], epoch)
+#            writer.add_images(f'Subsets/{key}', subset_grids[key], 
+#                    epoch)
+            writer.add_image(f'Subsets/{key}', subset_grids[key][0], 
+                    epoch)
 
     logger.close()
     writer.close()
