@@ -81,17 +81,25 @@ def draw_openpose(json_fpath, img_path):
 ### USED IN MAIN ###
 
 def draw_img(pose_2d, orig_img=None):
+
+    def is_zero(kpt):
+        return not np.any(kpt)
+
     pose_2d = pose_2d[:, :2]
     pose_2d *= GRID_SIZE
 
     img = np.zeros((GRID_SIZE, GRID_SIZE, 3), dtype=np.uint8)
     for kpt in pose_2d:
+        if is_zero(kpt):
+            continue
         img = cv2.circle(img, tuple(kpt), radius=1, 
                 color=(0, 255, 0), thickness=-1)
 
     for part in OPENPOSE_PARTS_15:
         start_point = tuple(pose_2d[part[0]])
         end_point = tuple(pose_2d[part[1]])
+        if is_zero(start_point) or is_zero(end_point):
+            continue
         img = cv2.line(img, start_point, end_point, 
                 (255, 0, 0), thickness=1)
 
@@ -99,7 +107,9 @@ def draw_img(pose_2d, orig_img=None):
 
 
 def create_grid(kpt_array, show_image=False):
-    img_grid = np.zeros((kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3))
+    img_grid = np.zeros(
+            (kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3),
+            dtype=np.uint8)
     kpt_array = np.squeeze(kpt_array, axis=3)
     kpt_array = np.swapaxes(kpt_array, 1, 2)
 
@@ -108,7 +118,6 @@ def create_grid(kpt_array, show_image=False):
         img = draw_img(kpts)
         img_grid[kpts_idx] = img
 
-    img_grid = np.swapaxes(img_grid, 1, 3)
     return img_grid
 
 ####################

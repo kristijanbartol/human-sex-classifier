@@ -336,10 +336,8 @@ def main(opt):
                     subset_accs[key], epoch)
             writer.add_scalar(f'Confidence/Subsets/{key}',
                     subset_confs[key], epoch)
-#            writer.add_images(f'Subsets/{key}', subset_grids[key], 
-#                    epoch)
-            writer.add_image(f'Subsets/{key}', subset_grids[key][0], 
-                    epoch)
+            writer.add_images(f'Subsets/{key}', subset_grids[key], 
+                    epoch, dataformats='NHWC')
 
     logger.close()
     writer.close()
