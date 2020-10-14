@@ -129,7 +129,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         subdir_dict[subdir_key]['X'] = np.array(
                 subdir_dict[subdir_key]['X'], dtype=np.float32)
         subdir_dict[subdir_key]['Y'] = np.array(
-                subdir_dict[subdir_key]['Y'], dtype=np.float32)
+                subdir_dict[subdir_key]['Y'], dtype=np.long)
         np.save(os.path.join(prepared_dir, f'{subdir_key}_X.npy'), 
                 subdir_dict[subdir_key]['X'])
         np.save(os.path.join(prepared_dir, f'{subdir_key}_Y.npy'), 

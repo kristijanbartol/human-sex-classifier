@@ -42,51 +42,16 @@ class ToTensor(object):
         return torch_sample
 
 
-class SubsetData(Dataset):
-
-    def __init__(self, name, X, Y):
-        self.name = name
-        self.X = X
-        self.Y = Y
-        # TODO
-        self.img_paths = None
-
-    @staticmethod
-    def create_subsets(dataset_dir):
-        npy_files = [x for x in os.listdir(dataset_dir) \
-                if 'train' not in x and 'test' not in x]
-        subset_names = [x.split('_')[0] for x in npy_files]
-        subsets = []
-        for name in subset_names:
-            basepath = os.path.join(dataset_dir, name)
-            xpath = f'{basepath}_X.npy'
-            ypath = f'{basepath}_Y.npy'
-            X = np.load(xpath)
-            Y = np.load(ypath)
-            subsets.append(SubsetData(name, X, Y))
-        if len(subsets) == 0:
-            print('WARNING: Zero subsets, prepare the dataset!')
-        return subsets
-
-    def __len__(self):
-        return self.num_samples
-
-    def __getitem__(self, idx):
-        sample = {'X': self.X[idx], 'Y': self.Y[idx].flatten()}
-        if self.transforms:
-            for transform in self.transforms:
-                transform(sample)
-        return sample
-
-
 class ClassificationDataset(Dataset):
 
-    def __init__(self, name, num_kpts, transforms, split):
+    def __init__(self, name, num_kpts, transforms, split, img_paths=None):
         self.name = name
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.split = split
         self.rootdir = f'./dataset/{name}/'
+        # TODO
+        self.img_paths = img_paths
         
         print(f'>>> loading {name}/{split} dataset')
 
@@ -99,11 +64,26 @@ class ClassificationDataset(Dataset):
         self.X = np.swapaxes(self.X, 1, 3)
 
         self.num_samples = self.Y.shape[0]
-        if split == 'test':
-            self.subsets = self.__load_subsets()
 
-    def __load_subsets(self):
-        return SubsetData.create_subsets(self.rootdir)
+    def create_subsets(self):
+        if self.split != 'test':
+            print('WARNING: Do not create subsets if != test!')
+
+        npy_files = [x for x in os.listdir(self.rootdir) \
+                if 'train' not in x and 'test' not in x]
+        subset_names = [x.split('_')[0] for x in npy_files]
+        subsets = []
+        for subset_name in subset_names:
+            subsets.append(ClassificationDataset(
+                self.name, 
+                self.num_kpts, 
+                self.transforms,
+                subset_name))
+
+        if len(subsets) == 0:
+            print('WARNING: Zero subsets, prepare the dataset!')
+
+        return subsets
 
     def __len__(self):
         return self.num_samples

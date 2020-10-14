@@ -98,7 +98,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
 
 
 def test(test_loader, model, criterion, num_kpts=15, num_classes=2, 
-        batch_size=64, inference=False):
+        batch_size=64, inference=False, log=True):
     losses = utils.AverageMeter()
 
     model.eval()
@@ -106,10 +106,14 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     errs, accs, confs = [], [], []
     start = time.time()
     batch_time = 0
-    bar = Bar('>>>', fill='>', max=len(test_loader))
+    if log:
+        bar = Bar('>>>', fill='>', max=len(test_loader))
 
     for i, sample in enumerate(test_loader):
         inputs = sample['X'].cuda()
+        # NOTE: PyTorch issue with dim0=1.
+        if inputs.shape[0] == 1:
+            continue
         targets = sample['Y'].reshape(-1).cuda()
         outputs = model(inputs)
 
@@ -137,22 +141,25 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
             batch_time = time.time() - start
             start = time.time()
 
-        bar.suffix = '({batch}/{size}) | batch: {batchtime:.4}ms | Total: {ttl} | ETA: {eta:} | loss: {loss:.6f}' \
-            .format(batch=i + 1,
-                    size=len(test_loader),
-                    batchtime=batch_time * 10.0,
-                    ttl=bar.elapsed_td,
-                    eta=bar.eta_td,
-                    loss=losses.avg)
-        bar.next()
+        if log:
+            bar.suffix = '({batch}/{size}) | batch: {batchtime:.4}ms | Total: {ttl} | ETA: {eta:} | loss: {loss:.6f}' \
+                .format(batch=i + 1,
+                        size=len(test_loader),
+                        batchtime=batch_time * 10.0,
+                        ttl=bar.elapsed_td,
+                        eta=bar.eta_td,
+                        loss=losses.avg)
+            bar.next()
 
     err = np.mean(np.array(errs))
     acc = np.mean(np.array(accs))
     conf = np.mean(np.array(confs))
-    bar.finish()
 
-    print('>>> test error: {} <<<'.format(err))
-    print('>>> test accuracy: {} <<<'.format(acc)) 
+    if log:
+        bar.finish()
+        print('>>> test error: {} <<<'.format(err))
+        print('>>> test accuracy: {} <<<'.format(acc)) 
+
     return losses.avg, err, acc, conf
 
 
@@ -222,9 +229,9 @@ def main(opt):
                         num_workers=opt.job)
 
     subset_loaders = {}
-    for subset in test_dataset.subsets:
-        subset_loaders[subset.name] = 
-                DataLoader(subset, batch_size=4, num_workers=opt.job))
+    for subset in test_dataset.create_subsets():
+        subset_loaders[subset.split] = DataLoader(
+                subset, batch_size=4, num_workers=opt.job)
 
     if opt.test:
         # TODO: This is currently broken.
@@ -252,16 +259,24 @@ def main(opt):
                 criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
                 batch_size=opt.test_batch)
 
+        ## Test subsets ##
         subset_losses = {}
         subset_errs = {}
         subset_accs = {}
-        for key in subset_loaders:
+        if len(subset_loaders) > 0:
+            bar = Bar('>>>', fill='>', max=len(subset_loaders))
+        for key_idx, key in enumerate(subset_loaders):
             loss_sub, err_sub, acc_sub, _ = test(subset_loaders[key], model,
-                    criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
-                    batch_size=4)
+                    criterion, num_kpts=opt.num_kpts, 
+                    num_classes=opt.num_classes, batch_size=4, log=False)
             subset_losses[key] = loss_sub
             subset_errs[key] = err_sub
             subset_accs[key] = acc_sub
+            bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | ETA: {bar.eta_td} | loss: {subset_losses[key]:.6f}'
+            bar.next()
+        if len(subset_loaders) > 0:
+            bar.finish()
+        ###################
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,
