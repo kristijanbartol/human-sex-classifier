@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation as rot
 import torch
 import h5py
 import json
+import math
 from random import random
 
 from const import PELVIS, H36M_KPTS_15, H36M_PARTS_15, KPTS_17, BODY_PARTS_17, \
@@ -25,6 +26,7 @@ PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
 GRID_SIZE = 100
+NUM_COLUMNS = 8
 
 
 def draw_keypoints(kpts_2d, h, w):
@@ -94,17 +96,17 @@ def draw_img(pose_2d_hom, orig_img=None):
     return img
 
 
-def create_grid(kpt_array, show_image):
-    num_rows = kpt_array.shape[0] // 8
-    img_grid = np.zeros((num_rows * 8, 3, GRID_SIZE, GRID_SIZE))
+def create_grid(kpt_array, show_image=False):
+    img_grid = np.zeros((kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3))
+    kpt_array = np.squeeze(kpt_array, axis=3)
+    kpt_array = kpt_array.reshape((-1, 15, 3))
 
     for kpts_idx, kpts in enumerate(kpt_array):
         # TODO: Implement original image as a background.
         img = draw_img(kpts)
-        h = kpts_idx // 8
-        w = kpts_idx % 8
-        img_grid[h][w] = img
+        img_grid[kpts_idx] = img
 
+    img_grid = np.swapaxes(img_grid, 1, 3)
     return img_grid
 
 
