@@ -261,17 +261,19 @@ def main(opt):
 
         ## Test subsets ##
         subset_losses = {}
-        subset_errs = {}
-        subset_accs = {}
+        subset_errs   = {}
+        subset_accs   = {}
+        subset_confs  = {}
         if len(subset_loaders) > 0:
             bar = Bar('>>>', fill='>', max=len(subset_loaders))
         for key_idx, key in enumerate(subset_loaders):
-            loss_sub, err_sub, acc_sub, _ = test(subset_loaders[key], model,
-                    criterion, num_kpts=opt.num_kpts, 
+            loss_sub, err_sub, acc_sub, conf_sub = test(subset_loaders[key], 
+                    model, criterion, num_kpts=opt.num_kpts, 
                     num_classes=opt.num_classes, batch_size=4, log=False)
             subset_losses[key] = loss_sub
-            subset_errs[key] = err_sub
-            subset_accs[key] = acc_sub
+            subset_errs[key]   = err_sub
+            subset_accs[key]   = acc_sub
+            subset_confs[key]  = conf_sub
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)})'
             bar.next()
         if len(subset_loaders) > 0:
@@ -320,6 +322,8 @@ def main(opt):
                     subset_errs[key], epoch)
             writer.add_scalar(f'Accuracy/Subsets/{key}', 
                     subset_accs[key], epoch)
+            writer.add_scalar(f'Confidence/Subsets/{key}',
+                    subset_confs[key], epoch)
 
     logger.close()
     writer.close()
