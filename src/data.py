@@ -73,7 +73,7 @@ class ClassificationDataset(Dataset):
                 if 'train' not in x and 'test' not in x]
         subset_names = [x.split('_')[0] for x in npy_files]
         subsets = []
-        for subset_name in subset_names:
+        for subset_name in np.unique(subset_names):
             subsets.append(ClassificationDataset(
                 self.name, 
                 self.num_kpts, 

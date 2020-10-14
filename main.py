@@ -272,7 +272,7 @@ def main(opt):
             subset_losses[key] = loss_sub
             subset_errs[key] = err_sub
             subset_accs[key] = acc_sub
-            bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | ETA: {bar.eta_td} | loss: {subset_losses[key]:.6f}'
+            bar.suffix = f'({key_idx+1}/{len(subset_loaders)})'
             bar.next()
         if len(subset_loaders) > 0:
             bar.finish()
@@ -313,6 +313,13 @@ def main(opt):
         writer.add_scalar('Accuracy/test', acc_test, epoch)
         writer.add_scalar('Confidence/train', conf_train, epoch)
         writer.add_scalar('Confidence/test', conf_test, epoch)
+        for key in subset_losses:
+            writer.add_scalar(f'Loss/Subsets/{key}', 
+                    subset_losses[key], epoch)
+            writer.add_scalar(f'Error/Subsets/{key}', 
+                    subset_errs[key], epoch)
+            writer.add_scalar(f'Accuracy/Subsets/{key}', 
+                    subset_accs[key], epoch)
 
     logger.close()
     writer.close()
