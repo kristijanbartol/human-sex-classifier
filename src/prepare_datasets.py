@@ -60,7 +60,9 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
 
     def get_img_size(img_path):
         img = cv2.imread(img_path)
-        return max(img.shape[0], img.shape[1])
+        img_size = max(img.shape[0], img.shape[1])
+        print(img_size)
+        return img_size
 
     train_X, test_X, train_Y, test_Y = [], [], [], []
     subdir_dict = {}
@@ -69,7 +71,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     last_idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
         print(xdir_name)
-        subdir_dict[xdir_name] = { 'X' : [], 'Y': [] }
+        subdir_dict[xdir_name] = { 'X' : [], 'Y': [], 'img': [] }
         xdir = os.path.join(openpose_dir, xdir_name)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
@@ -90,7 +92,8 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         img_ext = os.listdir(img_dir)[0].split('.')[1]
         img_names = [x.replace('_keypoints.json', f'.{img_ext}') \
                 for x in fnames]
-        img_size = get_img_size(os.path.join(img_dir, img_names[0]))
+        img_paths = [os.path.join(img_dir, x) for x in img_names]
+        img_size = get_img_size(img_paths[0])
 
         train_idxs = np.random.choice(
                 len(fnames), int(len(fnames) * train_ratio), replace=False)
@@ -102,6 +105,8 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 kpt_path = os.path.join(xdir, fnames[idx])
                 pose_2d = process_json(kpt_path)
                 pose_2d[:, :2] /= img_size
+                print(pose_2d[:, :2])
+                assert(np.any(pose_2d[:, :2] > 1.) is True)
                 pose_2d = np.expand_dims(pose_2d, axis=0)
                 subject_id = int(fnames[idx].split('.')[0].split('_')[0])
                 gender = id_gender_dict[subject_id]
@@ -114,6 +119,7 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                         test_Y.append(gender)
                         subdir_dict[xdir_name]['X'].append(pose_2d)
                         subdir_dict[xdir_name]['Y'].append(gender)
+                        subdir_dict[xdir_name]['img'].append(img_paths[idx])
                 else:
                     invalid_counter += 1
 
@@ -134,6 +140,10 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
                 subdir_dict[subdir_key]['X'])
         np.save(os.path.join(prepared_dir, f'{subdir_key}_Y.npy'), 
                 subdir_dict[subdir_key]['Y'])
+        with open(os.path.join(prepared_dir, 
+            f'{subdir_key}_imgpaths.txt'), 'w') as f:
+            for img_path in subdir_dict[subdir_key]['img']:
+                f.write(img_path + '\n')
 
     np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
@@ -143,58 +153,6 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     print(f'Number of invalid samples: {invalid_counter}')
     print(f'Total number of samples: \
             {invalid_counter + train_X.shape[0] + test_X.shape[0]}')
-
-
-def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0, 
-        orient_x=False, orient_z=False, train_ratio=0.8):
-
-    def get_gender(gt_pose_dir):
-        with open(os.path.join(gt_pose_dir, 'params.json')) as fjson:
-            params = json.load(fjson)
-            return params['gender']
-
-    train_X = []
-    train_Y = []
-    test_X  = []
-    test_Y  = []
-
-    gt_dir = os.path.join(rootdir, 'gt/')
-    openpose_dir = os.path.join(rootdir, 'openpose/')
-    subject_dirs = [x for x in os.listdir(gt_dir) if 'npy' not in x]
-    # Used for train/test split.
-    num_dirs_per_gender = len(subject_dirs) / 2
-    max_dir_idx = int(train_ratio * num_dirs_per_gender)
-
-    # TODO: Merge GT and OpenPose into same function.
-    for subject_dirname in [x for x in os.listdir(openpose_dir) if 'npy' not in x]:
-        subject_dir = os.path.join(openpose_dir, subject_dirname)
-        gt_pose_dir = os.path.join(gt_dir, subject_dirname)
-        print(subject_dir)
-        for pose_name in [x for x in os.listdir(subject_dir) if 'npy' in x]:
-            pose_path = os.path.join(subject_dir, pose_name)
-            pose_2d = process_json(pose_path)
-            pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
-            # TODO: Avoid this magic number.
-            pose_2d[:, :2] /= (600. - 1)
-            pose_2d = np.expand_dims(pose_2d, axis=0)
-            if int(subject_dirname[-4:]) < max_dir_idx:
-                train_X.append(pose_2d)
-                train_Y.append(get_gender(gt_pose_dir))
-            else:
-                test_X.append(pose_2d)
-                test_Y.append(get_gender(gt_pose_dir))
-
-    prepared_dir = os.path.join(DATASET_DIR, dataset_name)
-    os.makedirs(prepared_dir, exist_ok=True)
-
-    train_X = np.array(train_X, dtype=np.float32)
-    train_Y = np.array(train_Y, dtype=np.long)
-    test_X  = np.array(test_X,  dtype=np.float32)
-    test_Y  = np.array(test_Y,  dtype=np.long)
-    np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
-    np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
-    np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
-    np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
 
 def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
@@ -266,6 +224,58 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
         json.dump(test_action_idxs_dict, fjson, indent=4)
     with open(os.path.join(prepared_dir, 'test_subject_idxs_dict.json'), 'w') as fjson:
         json.dump(test_subject_idxs_dict, fjson, indent=4)
+
+
+def prepare_openpose(rootdir, dataset_name, scale=1.0, downscale=1.0, 
+        orient_x=False, orient_z=False, train_ratio=0.8):
+
+    def get_gender(gt_pose_dir):
+        with open(os.path.join(gt_pose_dir, 'params.json')) as fjson:
+            params = json.load(fjson)
+            return params['gender']
+
+    train_X = []
+    train_Y = []
+    test_X  = []
+    test_Y  = []
+
+    gt_dir = os.path.join(rootdir, 'gt/')
+    openpose_dir = os.path.join(rootdir, 'openpose/')
+    subject_dirs = [x for x in os.listdir(gt_dir) if 'npy' not in x]
+    # Used for train/test split.
+    num_dirs_per_gender = len(subject_dirs) / 2
+    max_dir_idx = int(train_ratio * num_dirs_per_gender)
+
+    # TODO: Merge GT and OpenPose into same function.
+    for subject_dirname in [x for x in os.listdir(openpose_dir) if 'npy' not in x]:
+        subject_dir = os.path.join(openpose_dir, subject_dirname)
+        gt_pose_dir = os.path.join(gt_dir, subject_dirname)
+        print(subject_dir)
+        for pose_name in [x for x in os.listdir(subject_dir) if 'npy' in x]:
+            pose_path = os.path.join(subject_dir, pose_name)
+            pose_2d = process_json(pose_path)
+            pose_2d[:, :2] = random_scale(pose_2d[:, :2], scale, downscale)
+            # TODO: Avoid this magic number.
+            pose_2d[:, :2] /= (600. - 1)
+            pose_2d = np.expand_dims(pose_2d, axis=0)
+            if int(subject_dirname[-4:]) < max_dir_idx:
+                train_X.append(pose_2d)
+                train_Y.append(get_gender(gt_pose_dir))
+            else:
+                test_X.append(pose_2d)
+                test_Y.append(get_gender(gt_pose_dir))
+
+    prepared_dir = os.path.join(DATASET_DIR, dataset_name)
+    os.makedirs(prepared_dir, exist_ok=True)
+
+    train_X = np.array(train_X, dtype=np.float32)
+    train_Y = np.array(train_Y, dtype=np.long)
+    test_X  = np.array(test_X,  dtype=np.float32)
+    test_Y  = np.array(test_Y,  dtype=np.long)
+    np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
+    np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
+    np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
+    np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
 
 def prepare_gender(rootdir, dataset_name, scale=1.0, downscale=1.0, 

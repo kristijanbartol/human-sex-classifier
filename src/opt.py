@@ -50,6 +50,13 @@ class Options:
         self.parser.add_argument('--train_datasets', type=str, default='peta-openpose', help='which train datasets to use')
         self.parser.add_argument('--test_dataset',   type=str, default='peta-openpose', help='which test set to use')
         self.parser.add_argument('--num_classes',   type=int, default=2, help='# of possible classification classes')
+        
+
+        # ===============================================================
+        #                   TensorBoard options
+        # ==============================================================
+        self.parser.add_argument('--tb_grid_size',  type=int, default=8, help='# of tiles per img grid in TB')
+
 
         # ===============================================================
         #                     Running options
@@ -74,7 +81,7 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        self.opt.name = 'peta'
+        self.opt.name = 'people3d-peta-no_center'
         ckpt = os.path.join(self.opt.ckpt, self.opt.name)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)

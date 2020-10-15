@@ -1,5 +1,6 @@
 import os
 import cv2
+from PIL import Image
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -10,6 +11,7 @@ import torch
 import h5py
 import json
 import math
+import copy
 from random import random
 
 from const import PELVIS, H36M_KPTS_15, H36M_PARTS_15, KPTS_17, BODY_PARTS_17, \
@@ -85,10 +87,31 @@ def draw_img(pose_2d, orig_img=None):
     def is_zero(kpt):
         return not np.any(kpt)
 
+    def resize(orig_img):
+        bigger_dim_size = np.max(orig_img.shape)
+        scale_factor = bigger_dim_size / float(GRID_SIZE)
+        new_h = int(orig_img.shape[0] / scale_factor)
+        new_w = int(orig_img.shape[1] / scale_factor)
+        orig_img = cv2.resize(orig_img, (new_w, new_h))
+        return orig_img
+
+    def make_square(full_img, img):
+        h, w, _ = img.shape
+        h_off = int((GRID_SIZE - h) / 2)
+        w_off = int((GRID_SIZE - w) / 2)
+        full_img[h_off:h_off+h, \
+                w_off:w_off+w] = img
+        return full_img
+
     pose_2d = pose_2d[:, :2]
     pose_2d *= GRID_SIZE
 
-    img = np.zeros((GRID_SIZE, GRID_SIZE, 3), dtype=np.uint8)
+    img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
+            dtype=np.uint8)
+    if orig_img is not None:
+        resized_img = resize(orig_img)
+        img = make_square(img, resized_img)
+
     for kpt in pose_2d:
         if is_zero(kpt):
             continue
@@ -106,16 +129,18 @@ def draw_img(pose_2d, orig_img=None):
     return img
 
 
-def create_grid(kpt_array, show_image=False):
+def create_grid(kpt_array, img_paths=None):
     img_grid = np.zeros(
             (kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3),
             dtype=np.uint8)
+    kpt_array = copy.deepcopy(kpt_array)
     kpt_array = np.squeeze(kpt_array, axis=3)
     kpt_array = np.swapaxes(kpt_array, 1, 2)
 
     for kpts_idx, kpts in enumerate(kpt_array):
-        # TODO: Implement original image as a background.
-        img = draw_img(kpts)
+        if img_paths is not None:
+            orig_img = cv2.imread(img_paths[kpts_idx])
+        img = draw_img(kpts, orig_img)
         img_grid[kpts_idx] = img
 
     return img_grid

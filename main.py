@@ -105,8 +105,6 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
     model.eval()
     
-    # Use input_sample to show in TB.
-    input_sample = None
     errs, accs, confs = [], [], []
     start = time.time()
     batch_time = 0
@@ -114,8 +112,6 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
         bar = Bar('>>>', fill='>', max=len(test_loader))
 
     for i, sample in enumerate(test_loader):
-        if input_sample is None:
-            input_sample = sample['X'].data.cpu().numpy()
         inputs = sample['X'].cuda()
         # NOTE: PyTorch issue with dim0=1.
         if inputs.shape[0] == 1:
@@ -166,7 +162,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
         print('>>> test error: {} <<<'.format(err))
         print('>>> test accuracy: {} <<<'.format(acc)) 
 
-    return losses.avg, err, acc, conf, input_sample
+    return losses.avg, err, acc, conf
 
 
 def main(opt):
@@ -257,16 +253,16 @@ def main(opt):
         print('==========================')
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))
 
-        # per epoch
         glob_step, lr_now, loss_train, err_train, acc_train, conf_train = \
                 train(train_loader, model, criterion, optimizer, 
                         num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
                         lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, 
                         lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
                         max_norm=opt.max_norm)
-        loss_test, err_test, acc_test, conf_test, _ = test(test_loader, model, 
-                criterion, num_kpts=opt.num_kpts, num_classes=opt.num_classes,
-                batch_size=opt.test_batch)
+
+        loss_test, err_test, acc_test, conf_test = \
+                test(test_loader, model, criterion, num_kpts=opt.num_kpts, 
+                        num_classes=opt.num_classes, batch_size=opt.test_batch)
 
         ## Test subsets ##
         subset_losses = {}
@@ -274,20 +270,29 @@ def main(opt):
         subset_accs   = {}
         subset_confs  = {}
         subset_grids  = {}
+
         if len(subset_loaders) > 0:
             bar = Bar('>>>', fill='>', max=len(subset_loaders))
+
         for key_idx, key in enumerate(subset_loaders):
-            loss_sub, err_sub, acc_sub, conf_sub, sample_input = test(
+            loss_sub, err_sub, acc_sub, conf_sub = test(
                     subset_loaders[key], model, criterion, 
                     num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
                     batch_size=4, log=False)
+
             subset_losses[key] = loss_sub
             subset_errs[key]   = err_sub
             subset_accs[key]   = acc_sub
             subset_confs[key]  = conf_sub
-            subset_grids[key]  = create_grid(sample_input)
+
+            sub_dataset = subset_loaders[key].dataset
+            subset_grids[key]  = create_grid(
+                    sub_dataset.X[:opt.tb_grid_size], 
+                    sub_dataset.img_paths[:opt.tb_grid_size])
+
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
             bar.next()
+
         if len(subset_loaders) > 0:
             bar.finish()
         ###################

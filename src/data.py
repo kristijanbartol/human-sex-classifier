@@ -50,7 +50,6 @@ class ClassificationDataset(Dataset):
         self.transforms = transforms
         self.split = split
         self.rootdir = f'./dataset/{name}/'
-        # TODO
         self.img_paths = img_paths
         
         print(f'>>> loading {name}/{split} dataset')
@@ -63,7 +62,14 @@ class ClassificationDataset(Dataset):
         self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
-        self.num_samples = self.Y.shape[0]
+    def __get_img_paths(self, subset_name):
+        img_paths_path = os.path.join(self.rootdir, 
+                f'{subset_name}_imgpaths.txt')
+
+        with open(img_paths_path) as path_f:
+            paths = [x[:-1] for x in path_f.readlines()]
+
+        return paths
 
     def create_subsets(self):
         if self.split != 'test':
@@ -71,14 +77,18 @@ class ClassificationDataset(Dataset):
 
         npy_files = [x for x in os.listdir(self.rootdir) \
                 if 'train' not in x and 'test' not in x]
+
         subset_names = [x.split('_')[0] for x in npy_files]
         subsets = []
+
         for subset_name in np.unique(subset_names):
+            img_paths = self.__get_img_paths(subset_name)
             subsets.append(ClassificationDataset(
                 self.name, 
                 self.num_kpts, 
                 self.transforms,
-                subset_name))
+                split=subset_name,
+                img_paths=img_paths))
 
         if len(subsets) == 0:
             print('WARNING: Zero subsets, prepare the dataset!')
@@ -86,7 +96,7 @@ class ClassificationDataset(Dataset):
         return subsets
 
     def __len__(self):
-        return self.num_samples
+        return self.Y.shape[0]
 
     def __getitem__(self, idx):
         sample = {'X': self.X[idx], 'Y': self.Y[idx].flatten()}
@@ -94,5 +104,4 @@ class ClassificationDataset(Dataset):
             for transform in self.transforms:
                 transform(sample)
         return sample
-
 
