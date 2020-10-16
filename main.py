@@ -24,7 +24,7 @@ import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
 from src.data import ToTensor, ClassificationDataset
-from src.data_utils import one_hot
+from src.data_utils import one_hot, mpjpe_2d_openpose
 from src.vis import create_grid
 
 
@@ -219,7 +219,8 @@ def main(opt):
             name=dataset_name,
             num_kpts=opt.num_kpts,
             transforms=transforms,
-            split='train'))
+            split='train',
+            gt=opt.gt))
     train_dataset = ConcatDataset(train_datasets)
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
@@ -228,7 +229,8 @@ def main(opt):
             name=opt.test_dataset,
             num_kpts=opt.num_kpts, 
             transforms=transforms,
-            split='test')
+            split='test',
+            gt=opt.gt)
 
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
                         num_workers=opt.job)
@@ -265,11 +267,12 @@ def main(opt):
                         num_classes=opt.num_classes, batch_size=opt.test_batch)
 
         ## Test subsets ##
-        subset_losses = {}
-        subset_errs   = {}
-        subset_accs   = {}
-        subset_confs  = {}
-        subset_grids  = {}
+        subset_losses   = {}
+        subset_errs     = {}
+        subset_accs     = {}
+        subset_confs    = {}
+        subset_openpose = {}
+        subset_grids    = {}
 
         if len(subset_loaders) > 0:
             bar = Bar('>>>', fill='>', max=len(subset_loaders))
@@ -286,6 +289,8 @@ def main(opt):
             subset_confs[key]  = conf_sub
 
             sub_dataset = subset_loaders[key].dataset
+            subset_openpose[key] = mpjpe_2d_openpose(
+                    sub_dataset.X, sub_dataset.gt_paths)
             subset_grids[key]  = create_grid(
                     sub_dataset.X[:opt.tb_grid_size], 
                     sub_dataset.img_paths[:opt.tb_grid_size])

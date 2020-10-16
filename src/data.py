@@ -44,29 +44,35 @@ class ToTensor(object):
 
 class ClassificationDataset(Dataset):
 
-    def __init__(self, name, num_kpts, transforms, split, img_paths=None):
+    def __init__(self, name, num_kpts, transforms, split, 
+            gt=False, gt_paths=None, img_paths=None):
         self.name = name
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.split = split
         self.rootdir = f'./dataset/{name}/'
+        self.gt_paths = gt_paths
         self.img_paths = img_paths
-        
+
+        if gt:
+            # For GT, be able to select keypoint subsets.
+            kpts_set = KPTS_DICT[num_kpts]
+        else:
+            # For OpenPose, use first 15 keypoints.
+            kpts_set = range(15)
+
         print(f'>>> loading {name}/{split} dataset')
 
         self.Y = np.load(os.path.join(self.rootdir, f'{split}_Y.npy'))
-
-        # TODO: Add different keypoints sets for different datasets.
-        kpts_set = KPTS_DICT[num_kpts]
         self.X = np.load(os.path.join(self.rootdir, f'{split}_X.npy'))
         self.X = self.X[:, :, kpts_set, :]
         self.X = np.swapaxes(self.X, 1, 3)
 
-    def __get_img_paths(self, subset_name):
-        img_paths_path = os.path.join(self.rootdir, 
-                f'{subset_name}_imgpaths.txt')
+    def __load_paths(self, subset_name, path_type):
+        paths_path = os.path.join(self.rootdir, 
+                f'{subset_name}_{path_type}paths.txt')
 
-        with open(img_paths_path) as path_f:
+        with open(paths_path) as path_f:
             paths = [x[:-1] for x in path_f.readlines()]
 
         return paths
@@ -82,12 +88,15 @@ class ClassificationDataset(Dataset):
         subsets = []
 
         for subset_name in np.unique(subset_names):
-            img_paths = self.__get_img_paths(subset_name)
+            gt_paths = self.__load_paths(subset_name, 'gt')
+            img_paths = self.__load_paths(subset_name, 'img')
             subsets.append(ClassificationDataset(
                 self.name, 
                 self.num_kpts, 
                 self.transforms,
                 split=subset_name,
+                gt=self.gt,
+                gt_paths=gt_paths,
                 img_paths=img_paths))
 
         if len(subsets) == 0:

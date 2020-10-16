@@ -16,6 +16,47 @@ def one_hot(labels, num_classes):
     return oh_labels
 
 
+def mpjpe_2d_openpose(est, gt):
+    '''
+    Calculate MPJPE for non-zero keypoint estimations.
+    '''
+    assert(est.shape[0] == gt.shape[0])
+
+    mmpjpe = 0.
+    for pose_idx in range(est.shape[0]):
+        assert(est.shape[1] == 15)
+        mpjpe = 0.
+        counter = 0
+
+        for kpt_idx in range(est.shape[1]):
+            if est[pose_idx][kpt_idx][:2] == 0.:
+                continue
+            mpjpe += est[pose_idx][kpt_idx][:2] - \
+                    gt[pose_idx][kpt_idx]
+            counter += 1
+
+        mmpjpe += mpjpe / counter
+
+    mmpjpe /= est.shape[0]
+    return mmpjpe
+
+
+def mean_missing_parts(est):
+    '''
+    Calculate mean number of missing (OpenPose) parts.
+    '''
+    num_missing = 0
+
+    for pose_2d in est:
+        assert(pose_2d.shape[0] == 15)
+
+        for kpt in pose_2d:
+            if kpt[:2] = 0.:
+                num_missing += 1
+
+    return float(num_missing) / est.shape[0]
+
+
 def random_scale(pose_2d, scale=1.0, downscale=1.0):
     '''
     Random scale while keeping the pose location.
