@@ -72,8 +72,12 @@ class ClassificationDataset(Dataset):
         paths_path = os.path.join(self.rootdir, 
                 f'{subset_name}_{path_type}paths.txt')
 
-        with open(paths_path) as path_f:
-            paths = [x[:-1] for x in path_f.readlines()]
+        if os.path.exists(paths_path):
+            with open(paths_path) as path_f:
+                paths = [x[:-1] for x in path_f.readlines()]
+        else:
+            print(f'>>> NOTE: {paths_path} not found. This is'
+                    'expected for PETA test dataset')
 
         return paths
 
