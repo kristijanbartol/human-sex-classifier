@@ -51,7 +51,7 @@ def mean_missing_parts(est):
         assert(pose_2d.shape[0] == 15)
 
         for kpt in pose_2d:
-            if kpt[:2] = 0.:
+            if kpt[:2] == 0.:
                 num_missing += 1
 
     return float(num_missing) / est.shape[0]

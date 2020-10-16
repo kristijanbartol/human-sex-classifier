@@ -189,17 +189,20 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                         subdir_dict[action_dirname] = { 
                                 'X' : [], 'Y': [], 'img': [] }
 
+                    # NOTE: Replace 'openpose' or 'gt' with 'gt'.
+                    gt_dir = pose_dir.replace(subdir, 'gt') 
+                    img_dir = pose_dir.replace(subdir, 'imgs')
+                    img_dir = os.path.join(img_dir, os.listdir(img_dir))
+
                 action_dir = os.path.join(subject_dir, action_dirname)
                 pose_dir = os.path.join(action_dir, 'camera01')
-                # NOTE: Replace 'openpose' or 'gt' with 'gt'.
-                gt_dir = pose_dir.replace(subdir, 'gt') 
-                img_dir = pose_dir.replace(subdir, 'imgs')
-                img_dir = os.path.join(img_dir, os.listdir(img_dir))
 
                 for pose_name in sorted(os.listdir(pose_dir)):
                     pose_path = os.path.join(pose_dir, pose_name)
-                    img_path = os.path.join(img_dir, f'pose_name[:4].png')
-                    gt_path = os.path.join(gt_dir, f'pose_name[:4].txt')
+
+                    if data_type == 'test':
+                        img_path = os.path.join(img_dir, f'pose_name[:4].png')
+                        gt_path = os.path.join(gt_dir, f'pose_name[:4].txt')
 
                     if openpose:
                         pose_2d = process_json(pose_path)
@@ -262,7 +265,7 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                 f.write(img_path + '\n')
 
         with open(os.path.join(prepared_dir,
-            f'{subdir_key}_gtpaths.txt', 'w') as f):
+            f'{subdir_key}_gtpaths.txt', 'w')) as f:
             for gt_path in subdir_dict[subdir_key]['gt']:
                 f.write(gt_path + '\n')
 
