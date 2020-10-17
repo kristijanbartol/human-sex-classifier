@@ -50,11 +50,12 @@ class ClassificationDataset(Dataset):
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.split = split
+        self.gt = gt
         self.rootdir = f'./dataset/{name}/'
         self.gt_paths = gt_paths
         self.img_paths = img_paths
 
-        if gt:
+        if self.gt:
             # For GT, be able to select keypoint subsets.
             kpts_set = KPTS_DICT[num_kpts]
         else:
@@ -76,6 +77,7 @@ class ClassificationDataset(Dataset):
             with open(paths_path) as path_f:
                 paths = [x[:-1] for x in path_f.readlines()]
         else:
+            paths = None
             print(f'>>> NOTE: {paths_path} not found. This is'
                     'expected for PETA test dataset')
 

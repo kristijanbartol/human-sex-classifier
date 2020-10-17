@@ -102,10 +102,10 @@ def prepare_orig_img(orig_img):
 
 
 def write_text(pose_2d_img, y_pred, y_targ):
-    cv2.putText(pose_2d_img,
+    return cv2.putText(pose_2d_img,
             'Male' if y_pred == 0 else 'Female', 
-            cv2.FONT_HERSHEY_SIMPLEX,
             (GRID_SIZE, 0), 
+            cv2.FONT_HERSHEY_SIMPLEX,
             0.1, 
             GREEN if y_pred == y_targ else RED,
             2)
@@ -141,7 +141,7 @@ def draw_pose_2d(pose_2d):
 
 def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
     img_grid = np.zeros(
-            (pose_2ds.shape[0],  GRID_SIZE, GRID_SIZE, 3),
+            (pose_2ds.shape[0] * 2,  GRID_SIZE, GRID_SIZE, 3),
             dtype=np.uint8)
     pose_2ds = copy.deepcopy(pose_2ds)
     pose_2ds = np.squeeze(pose_2ds, axis=3)
@@ -157,7 +157,7 @@ def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
         orig_img = prepare_orig_img(orig_img)
 
         img_grid[2*pose_idx] = pose_2d_img
-        orig_img[2*pose_idx+1] = orig_img
+        img_grid[2*pose_idx+1] = orig_img
 
     return img_grid
 

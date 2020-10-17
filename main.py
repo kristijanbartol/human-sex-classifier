@@ -165,19 +165,16 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     return losses.avg, err, acc, conf
 
 
-def eval_sample(sample_X, sample_Y):
-    for sample_idx, sample in sample_batch:
-        inputs = sample_X.cuda()
-        targets = sample_Y.reshape(-1).cuda()
+def eval_sample(sample_X, model):
+    inputs = torch.from_numpy(sample_X).cuda()
+    
+    outputs = model(inputs)
+    softmax = nn.Softmax()
+    outputs = softmax(outputs)
 
-        outputs = model(inputs)
-        softmax = nn.Softmax()
-        outputs = softmax(outputs)
+    outputs = np.argmax(outputs.data.cpu().numpy(), axis=1)
 
-        outputs = np.argmax(outputs.data.cpu().numpy(), axis=1)
-        targets = targets.data.cpu().numpy()
-
-    return outputs, targets
+    return outputs
 
 
 def main(opt):
@@ -304,15 +301,19 @@ def main(opt):
             subset_confs[key]  = conf_sub
 
             sub_dataset = subset_loaders[key].dataset
-            subset_openpose[key] = mpjpe_2d_openpose(
-                    sub_dataset.X, sub_dataset.gt_paths)
+            if sub_dataset.gt_paths is not None:
+                subset_openpose[key] = mpjpe_2d_openpose(
+                        sub_dataset.X, sub_dataset.gt_paths)
+            else:
+                subset_openpose[key] = 0.
 
             sample_X = sub_dataset.X[:opt.tb_grid_size]
-            Y_pred, Y_targ = eval_sample(sample_X)
+            sample_Y = sub_dataset.Y[:opt.tb_grid_size]
+            Y_pred = eval_sample(sample_X, model)
             subset_grids[key]  = create_grid(
-                    sub_dataset.X[:opt.tb_grid_size],
+                    sample_X,
                     Y_pred,
-                    Y_targ,
+                    sample_Y,
                     sub_dataset.img_paths[:opt.tb_grid_size])
 
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
