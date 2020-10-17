@@ -165,6 +165,21 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     return losses.avg, err, acc, conf
 
 
+def eval_sample(sample_X, sample_Y):
+    for sample_idx, sample in sample_batch:
+        inputs = sample_X.cuda()
+        targets = sample_Y.reshape(-1).cuda()
+
+        outputs = model(inputs)
+        softmax = nn.Softmax()
+        outputs = softmax(outputs)
+
+        outputs = np.argmax(outputs.data.cpu().numpy(), axis=1)
+        targets = targets.data.cpu().numpy()
+
+    return outputs, targets
+
+
 def main(opt):
     start_epoch = 0
     err_best = 1000
@@ -291,8 +306,13 @@ def main(opt):
             sub_dataset = subset_loaders[key].dataset
             subset_openpose[key] = mpjpe_2d_openpose(
                     sub_dataset.X, sub_dataset.gt_paths)
+
+            sample_X = sub_dataset.X[:opt.tb_grid_size]
+            Y_pred, Y_targ = eval_sample(sample_X)
             subset_grids[key]  = create_grid(
-                    sub_dataset.X[:opt.tb_grid_size], 
+                    sub_dataset.X[:opt.tb_grid_size],
+                    Y_pred,
+                    Y_targ,
                     sub_dataset.img_paths[:opt.tb_grid_size])
 
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'

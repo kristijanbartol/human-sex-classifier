@@ -23,11 +23,13 @@ from const import PELVIS, H36M_KPTS_15, H36M_PARTS_15, KPTS_17, BODY_PARTS_17, \
 
 DATASET_DIR = './dataset/'
 
-
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
 GRID_SIZE = 200
+
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
 
 
 def draw_keypoints(kpts_2d, h, w):
@@ -82,35 +84,43 @@ def draw_openpose(json_fpath, img_path):
 
 ### USED IN MAIN ###
 
-def draw_img(pose_2d, orig_img=None):
+def prepare_orig_img(orig_img):
+    bigger_dim_size = np.max(orig_img.shape)
+    scale_factor = bigger_dim_size / float(GRID_SIZE)
+    new_h = int(orig_img.shape[0] / scale_factor)
+    new_w = int(orig_img.shape[1] / scale_factor)
+    orig_img = cv2.resize(orig_img, (new_w, new_h))
+
+    h, w, _ = orig_img.shape
+    h_off = int((GRID_SIZE - h) / 2)
+    w_off = int((GRID_SIZE - w) / 2)
+
+    full_img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
+            dtype=np.uint8)
+    full_img[h_off:h_off+h, w_off:w_off+w] = orig_img
+    return full_img
+
+
+def write_text(pose_2d_img, y_pred, y_targ):
+    cv2.putText(pose_2d_img,
+            'Male' if y_pred == 0 else 'Female', 
+            cv2.FONT_HERSHEY_SIMPLEX,
+            (GRID_SIZE, 0), 
+            0.1, 
+            GREEN if y_pred == y_targ else RED,
+            2)
+
+
+def draw_pose_2d(pose_2d):
 
     def is_zero(kpt):
         return not np.any(kpt)
-
-    def resize(orig_img):
-        bigger_dim_size = np.max(orig_img.shape)
-        scale_factor = bigger_dim_size / float(GRID_SIZE)
-        new_h = int(orig_img.shape[0] / scale_factor)
-        new_w = int(orig_img.shape[1] / scale_factor)
-        orig_img = cv2.resize(orig_img, (new_w, new_h))
-        return orig_img
-
-    def make_square(full_img, img):
-        h, w, _ = img.shape
-        h_off = int((GRID_SIZE - h) / 2)
-        w_off = int((GRID_SIZE - w) / 2)
-        full_img[h_off:h_off+h, \
-                w_off:w_off+w] = img
-        return full_img
 
     pose_2d = pose_2d[:, :2]
     pose_2d *= GRID_SIZE
 
     img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
             dtype=np.uint8)
-    if orig_img is not None:
-        resized_img = resize(orig_img)
-        img = make_square(img, resized_img)
 
     for kpt in pose_2d:
         if is_zero(kpt):
@@ -129,19 +139,25 @@ def draw_img(pose_2d, orig_img=None):
     return img
 
 
-def create_grid(kpt_array, img_paths=None):
+def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
     img_grid = np.zeros(
-            (kpt_array.shape[0],  GRID_SIZE, GRID_SIZE, 3),
+            (pose_2ds.shape[0],  GRID_SIZE, GRID_SIZE, 3),
             dtype=np.uint8)
-    kpt_array = copy.deepcopy(kpt_array)
-    kpt_array = np.squeeze(kpt_array, axis=3)
-    kpt_array = np.swapaxes(kpt_array, 1, 2)
+    pose_2ds = copy.deepcopy(pose_2ds)
+    pose_2ds = np.squeeze(pose_2ds, axis=3)
+    pose_2ds = np.swapaxes(pose_2ds, 1, 2)
 
-    for kpts_idx, kpts in enumerate(kpt_array):
-        if img_paths is not None:
-            orig_img = cv2.imread(img_paths[kpts_idx])
-        img = draw_img(kpts, orig_img)
-        img_grid[kpts_idx] = img
+    for pose_idx, pose_2d in enumerate(pose_2ds):
+        # TODO: Add text to the image (label and G/R for correctness).
+        pose_2d_img = draw_pose_2d(pose_2d)
+        pose_2d_img = write_text(pose_2d_img, 
+                Y_pred[pose_idx],
+                Y_targ[pose_idx])
+        orig_img = cv2.imread(img_paths[pose_idx])
+        orig_img = prepare_orig_img(orig_img)
+
+        img_grid[2*pose_idx] = pose_2d_img
+        orig_img[2*pose_idx+1] = orig_img
 
     return img_grid
 
