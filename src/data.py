@@ -88,9 +88,10 @@ class ClassificationDataset(Dataset):
             print('WARNING: Do not create subsets if != test!')
 
         npy_files = [x for x in os.listdir(self.rootdir) \
-                if 'train' not in x and 'test' not in x]
+                if 'train' not in x and 'test' not in x \
+                and 'npy' in x]
 
-        subset_names = [x.split('_')[0] for x in npy_files]
+        subset_names = [x[:-6] for x in npy_files]
         subsets = []
 
         for subset_name in np.unique(subset_names):
