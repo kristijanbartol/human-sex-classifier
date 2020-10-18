@@ -148,7 +148,6 @@ def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
     for pose_idx, pose_2d in enumerate(pose_2ds):
         orig_img = cv2.imread(img_paths[pose_idx])
         img_size = max(orig_img.shape[0], orig_img.shape[1])
-        print(f'{img_paths[pose_idx]}: {img_size}')
         orig_img = prepare_orig_img(orig_img)
 
         pose_2d_img = draw_pose_2d(pose_2d, img_size)

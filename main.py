@@ -165,7 +165,7 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     return losses.avg, err, acc, conf
 
 
-def extract_tb_sample(test_loader, model, batch_size=64):
+def extract_tb_sample(test_loader, model, batch_size):
     '''
     Extract 4 correct and 4 wrong samples.
     '''
@@ -277,12 +277,12 @@ def main(opt):
             gt=opt.gt)
 
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
-                        num_workers=opt.job)
+                        shuffle=False, num_workers=opt.job)
 
     subset_loaders = {}
     for subset in test_dataset.create_subsets():
-        subset_loaders[subset.split] = DataLoader(
-                subset, batch_size=4, num_workers=opt.job)
+        subset_loaders[subset.split] = DataLoader(subset, 
+                batch_size=opt.test_batch, shuffle=False, num_workers=opt.job)
 
     if opt.test:
         # TODO: This is currently broken.
@@ -339,10 +339,14 @@ def main(opt):
             else:
                 subset_openpose[key] = 0.
 
-            Y_pred, sample_idxs = extract_tb_sample(sub_dataset.X, model)
+            Y_pred, sample_idxs = extract_tb_sample(
+                    subset_loaders[key], 
+                    model,
+                    batch_size=opt.test_batch)
             sample_X = sub_dataset.X[sample_idxs]
             sample_Y = sub_dataset.Y[sample_idxs]
-            sample_img_paths = sub_dataset.img_paths[sample_idxs]
+            sample_img_paths = [sub_dataset.img_paths[x]
+                    for x in sample_idxs]
             subset_grids[key]  = create_grid(
                     sample_X,
                     Y_pred,
