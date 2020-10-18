@@ -197,8 +197,8 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                     pose_path = os.path.join(pose_dir, pose_name)
 
                     if data_type == 'test':
-                        img_path = os.path.join(img_dir, f'pose_name[:4].png')
-                        gt_path = os.path.join(gt_dir, f'pose_name[:4].txt')
+                        img_path = os.path.join(img_dir, f'{pose_name[:4]}.jpg')
+                        gt_path = os.path.join(gt_dir, f'{pose_name[:4]}.txt')
 
                     if openpose:
                         pose_2d = process_json(pose_path)

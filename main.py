@@ -24,7 +24,7 @@ import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
 from src.data import ToTensor, ClassificationDataset
-from src.data_utils import one_hot, mpjpe_2d_openpose
+from src.data_utils import one_hot, load_gt, mpjpe_2d_openpose
 from src.vis import create_grid
 
 
@@ -331,8 +331,9 @@ def main(opt):
 
             sub_dataset = subset_loaders[key].dataset
             if sub_dataset.gt_paths is not None:
+                gt_X = load_gt(sub_dataset.gt_paths)
                 subset_openpose[key] = mpjpe_2d_openpose(
-                        sub_dataset.X, sub_dataset.gt_paths)
+                        sub_dataset.X, gt_X)
             else:
                 subset_openpose[key] = 0.
 

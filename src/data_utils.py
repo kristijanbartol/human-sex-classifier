@@ -7,7 +7,7 @@ from time import time
 import math
 import random
 
-from const import H, W, PELVIS, RADIUS, K
+from const import H, W, PELVIS, RADIUS, K, KPTS_15
 
 
 def one_hot(labels, num_classes):
@@ -16,26 +16,54 @@ def one_hot(labels, num_classes):
     return oh_labels
 
 
+def load_pose_2d_txt(gt_path):
+    kpts = []
+    with open(gt_path) as gt_f:
+        lines = [x[:-1] for x in gt_f.readlines()][1:]
+    for line_idx, line in enumerate(lines):
+        if line_idx + 1 in KPTS_15:
+            kpts.append([float(x) for x in line.split(' ')][:2])
+    return kpts
+
+
+def load_gt(gt_paths):
+    gt_X = []
+
+    for gt_path in gt_paths:
+        pose_2d = load_pose_2d_txt(gt_path)
+        gt_X.append(pose_2d)
+
+    gt_X = np.array(gt_X)
+    return gt_X
+
+
 def mpjpe_2d_openpose(est, gt):
     '''
     Calculate MPJPE for non-zero keypoint estimations.
     '''
     assert(est.shape[0] == gt.shape[0])
 
+    est = deepcopy(est)
+    est = est[:, :2, :, :]
+    est = np.swapaxes(est, 1, 3)
+
     mmpjpe = 0.
     for pose_idx in range(est.shape[0]):
-        assert(est.shape[1] == 15)
         mpjpe = 0.
         counter = 0
 
-        for kpt_idx in range(est.shape[1]):
-            if est[pose_idx][kpt_idx][:2] == 0.:
-                continue
-            mpjpe += est[pose_idx][kpt_idx][:2] - \
+        for kpt_idx in range(est.shape[2]):
+            kpt = est[pose_idx, 0, kpt_idx, :2]
+            if np.any(kpt):
+                mpjpe += kpt - \
                     gt[pose_idx][kpt_idx]
-            counter += 1
+                counter += 1
 
-        mmpjpe += mpjpe / counter
+        if counter > 0:
+            mmpjpe += mpjpe / counter
+        else:
+            # Some 2D poses are all zeros.
+            continue
 
     mmpjpe /= est.shape[0]
     return mmpjpe
