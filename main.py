@@ -165,16 +165,48 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     return losses.avg, err, acc, conf
 
 
-def eval_sample(sample_X, model):
-    inputs = torch.from_numpy(sample_X).cuda()
+def extract_tb_sample(test_loader, model, batch_size=64):
+    '''
+    Extract 4 correct and 4 wrong samples.
+    '''
+    model.eval()
+    num_correct = 0
+    num_wrong = 0
+    done = False
+    Y_pred = [0] * 8
+    sample_idxs = [-1] * 8
+
+    for bidx, batch in enumerate(test_loader):
+        inputs = batch['X'].cuda()
+        targets = batch['Y'].reshape(-1).cuda()
     
-    outputs = model(inputs)
-    softmax = nn.Softmax()
-    outputs = softmax(outputs)
+        outputs = model(inputs)
+        softmax = nn.Softmax()
+        outputs = softmax(outputs)
 
-    outputs = np.argmax(outputs.data.cpu().numpy(), axis=1)
+        outputs = np.argmax(outputs.data.cpu().numpy(), axis=1)
+        targets = targets.data.cpu().numpy()
 
-    return outputs
+        for idx in range(outputs.shape[0]):
+            ttl_idx = bidx * batch_size + idx
+            if outputs[idx] == targets[idx]:
+                if num_correct < 4:
+                    sample_idxs[num_correct] = ttl_idx
+                    Y_pred[num_correct] = outputs[idx]
+                    num_correct += 1
+            else:
+                if num_wrong < 4:
+                    sample_idxs[4 + num_wrong] = ttl_idx
+                    Y_pred[4 + num_wrong] = outputs[idx]
+                    num_wrong += 1
+            if num_correct == 4 and num_wrong == 4:
+                done = True
+                break
+
+        if done:
+            break
+
+    return Y_pred, sample_idxs
 
 
 def main(opt):
@@ -307,14 +339,15 @@ def main(opt):
             else:
                 subset_openpose[key] = 0.
 
-            sample_X = sub_dataset.X[:opt.tb_grid_size]
-            sample_Y = sub_dataset.Y[:opt.tb_grid_size]
-            Y_pred = eval_sample(sample_X, model)
+            Y_pred, sample_idxs = extract_tb_sample(sub_dataset.X, model)
+            sample_X = sub_dataset.X[sample_idxs]
+            sample_Y = sub_dataset.Y[sample_idxs]
+            sample_img_paths = sub_dataset.img_paths[sample_idxs]
             subset_grids[key]  = create_grid(
                     sample_X,
                     Y_pred,
                     sample_Y,
-                    sub_dataset.img_paths[:opt.tb_grid_size])
+                    sample_img_paths)
 
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
             bar.next()
