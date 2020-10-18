@@ -16,9 +16,7 @@ from random import random
 
 from const import PELVIS, H36M_KPTS_15, H36M_PARTS_15, KPTS_17, BODY_PARTS_17, \
         KPTS_15, OPENPOSE_PARTS_15, RADIUS, K
-#from data_utils import generate_random_projection, \
-#        generate_uniform_projection_matrices, project, normalize_3d_numpy, \
-#        generate_uniform_projections_torch
+from data_utils import fit_to_frame
 
 
 DATASET_DIR = './dataset/'
@@ -26,7 +24,7 @@ DATASET_DIR = './dataset/'
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
-GRID_SIZE = 200
+GRID_SIZE = 100
 
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
@@ -111,13 +109,13 @@ def write_text(pose_2d_img, y_pred, y_targ):
             2)
 
 
-def draw_pose_2d(pose_2d):
+def draw_pose_2d(pose_2d, img_size):
 
     def is_zero(kpt):
         return not np.any(kpt)
 
     pose_2d = pose_2d[:, :2]
-    pose_2d *= GRID_SIZE
+    pose_2d = fit_to_frame(pose_2d, GRID_SIZE)
 
     img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
             dtype=np.uint8)
@@ -148,13 +146,15 @@ def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
     pose_2ds = np.swapaxes(pose_2ds, 1, 2)
 
     for pose_idx, pose_2d in enumerate(pose_2ds):
-        # TODO: Add text to the image (label and G/R for correctness).
-        pose_2d_img = draw_pose_2d(pose_2d)
+        orig_img = cv2.imread(img_paths[pose_idx])
+        img_size = max(orig_img.shape[0], orig_img.shape[1])
+        print(f'{img_paths[pose_idx]}: {img_size}')
+        orig_img = prepare_orig_img(orig_img)
+
+        pose_2d_img = draw_pose_2d(pose_2d, img_size)
         pose_2d_img = write_text(pose_2d_img, 
                 Y_pred[pose_idx],
                 Y_targ[pose_idx])
-        orig_img = cv2.imread(img_paths[pose_idx])
-        orig_img = prepare_orig_img(orig_img)
 
         img_grid[2*pose_idx] = pose_2d_img
         img_grid[2*pose_idx+1] = orig_img

@@ -19,11 +19,6 @@ from data_utils import sample_projection_matrix, project, \
 DATASET_DIR = 'dataset/'
 PEOPLE3D_DIR = '/home/kristijan/phd/datasets/people3d/'
 
-GEN_H = 600
-GEN_W = 600
-P3D_H = 480
-P3D_W = 640
-
 
 def process_txt(fpath):
     kpts = []
@@ -51,7 +46,7 @@ def process_json(json_path):
     return pose_2d
 
 
-def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
+def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
 
     def get_gender_label_idx(line):
         for item_idx, item in enumerate(line.split(' ')):
@@ -61,7 +56,6 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     def get_img_size(img_path):
         img = cv2.imread(img_path)
         img_size = max(img.shape[0], img.shape[1])
-        print(img_size)
         return img_size
 
     train_X, test_X, train_Y, test_Y = [], [], [], []
@@ -70,12 +64,13 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
     invalid_counter = 0
     last_idx = 0
     for xdir_name in sorted(os.listdir(openpose_dir)):
-        print(xdir_name)
         subdir_dict[xdir_name] = { 'X' : [], 'Y': [], 'img': [] }
         xdir = os.path.join(openpose_dir, xdir_name)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
         fnames = sorted(os.listdir(xdir), key=lambda x: int(x.split('_')[0]))
+
+        print(f'{xdir_name} ({len(fnames)})')
 
         with open(label_path) as flabel:
             labels = [x[:-1] for x in flabel.readlines()]
@@ -93,7 +88,6 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         img_names = [x.replace('_keypoints.json', f'.{img_ext}') \
                 for x in fnames]
         img_paths = [os.path.join(img_dir, x) for x in img_names]
-        img_size = get_img_size(img_paths[0])
 
         train_idxs = np.random.choice(
                 len(fnames), int(len(fnames) * train_ratio), replace=False)
@@ -104,9 +98,11 @@ def prepare_peta(rootdir, dataset_name, train_ratio=0.8):
         for idx in range(len(fnames)):
             kpt_path = os.path.join(xdir, fnames[idx])
             pose_2d = process_json(kpt_path)
+            img_size = get_img_size(img_paths[idx])
             pose_2d[:, :2] /= img_size
-            print(pose_2d[:, :2])
-            assert(np.any(pose_2d[:, :2] > 1.) is True)
+#            assert(np.any(pose_2d[:, :2] > 1.)):
+            if centered:
+                pose_2d = move_to_center(pose_2d)
             pose_2d = np.expand_dims(pose_2d, axis=0)
             subject_id = int(fnames[idx].split('.')[0].split('_')[0])
             gender = id_gender_dict[subject_id]
