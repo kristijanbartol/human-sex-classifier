@@ -72,11 +72,20 @@ def random_scale(pose_2d, scale=1.0, downscale=1.0):
     return pose_2d
 
 
+def translate_2d(pose_2d, t):
+    for kpt_idx in range(pose_2d.shape[0]):
+        # Apply only to non-zero keypoints.
+        if np.any(pose_2d[kpt_idx]):
+            pose_2d[kpt_idx] += t / 2.
+    return pose_2d
+
+
 def move_2d_to_origin(pose_2d):
     max_coord = np.amax(pose_2d, axis=0)
     min_coord = np.amin(pose_2d, axis=0)
     mid_point = (max_coord + min_coord) / 2.
-    pose_2d -= mid_point
+
+    pose_2d = translate_2d(pose_2d, -mid_point)
     return pose_2d
 
 
@@ -88,7 +97,8 @@ def fit_to_frame(pose_2d, frame_size):
     '''
     pose_2d = move_2d_to_origin(pose_2d)
     pose_2d *= frame_size
-    pose_2d += frame_size
+    pose_2d = translate_2d(
+            pose_2d, float(frame_size) / 2.)
     return pose_2d
 
 

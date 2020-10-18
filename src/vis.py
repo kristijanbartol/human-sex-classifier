@@ -99,16 +99,6 @@ def prepare_orig_img(orig_img):
     return full_img
 
 
-def write_text(pose_2d_img, y_pred, y_targ):
-    return cv2.putText(pose_2d_img,
-            'Male' if y_pred == 0 else 'Female', 
-            (TILE_SIZE, 0), 
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.1, 
-            GREEN if y_pred == y_targ else RED,
-            2)
-
-
 def draw_pose_2d(pose_2d, img_size):
 
     def is_zero(kpt):
@@ -137,7 +127,7 @@ def draw_pose_2d(pose_2d, img_size):
     return img
 
 
-def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
+def create_grid(pose_2ds, img_paths):
     img_grid = np.zeros(
             (pose_2ds.shape[0] * 2,  TILE_SIZE, TILE_SIZE, 3),
             dtype=np.uint8)
@@ -151,10 +141,6 @@ def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
         orig_img = prepare_orig_img(orig_img)
 
         pose_2d_img = draw_pose_2d(pose_2d, img_size)
-        pose_2d_img = write_text(pose_2d_img, 
-                Y_pred[pose_idx],
-                Y_targ[pose_idx])
-
         img_grid[2*pose_idx] = pose_2d_img
         img_grid[2*pose_idx+1] = orig_img
 

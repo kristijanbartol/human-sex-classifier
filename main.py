@@ -173,7 +173,6 @@ def extract_tb_sample(test_loader, model, batch_size):
     num_correct = 0
     num_wrong = 0
     done = False
-    Y_pred = [0] * 8
     sample_idxs = [-1] * 8
 
     for bidx, batch in enumerate(test_loader):
@@ -192,12 +191,10 @@ def extract_tb_sample(test_loader, model, batch_size):
             if outputs[idx] == targets[idx]:
                 if num_correct < 4:
                     sample_idxs[num_correct] = ttl_idx
-                    Y_pred[num_correct] = outputs[idx]
                     num_correct += 1
             else:
                 if num_wrong < 4:
                     sample_idxs[4 + num_wrong] = ttl_idx
-                    Y_pred[4 + num_wrong] = outputs[idx]
                     num_wrong += 1
             if num_correct == 4 and num_wrong == 4:
                 done = True
@@ -206,7 +203,7 @@ def extract_tb_sample(test_loader, model, batch_size):
         if done:
             break
 
-    return Y_pred, sample_idxs
+    return sample_idxs
 
 
 def main(opt):
@@ -339,18 +336,15 @@ def main(opt):
             else:
                 subset_openpose[key] = 0.
 
-            Y_pred, sample_idxs = extract_tb_sample(
+            sample_idxs = extract_tb_sample(
                     subset_loaders[key], 
                     model,
                     batch_size=opt.test_batch)
             sample_X = sub_dataset.X[sample_idxs]
-            sample_Y = sub_dataset.Y[sample_idxs]
             sample_img_paths = [sub_dataset.img_paths[x]
                     for x in sample_idxs]
             subset_grids[key]  = create_grid(
                     sample_X,
-                    Y_pred,
-                    sample_Y,
                     sample_img_paths)
 
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
