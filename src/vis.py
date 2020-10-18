@@ -24,7 +24,7 @@ DATASET_DIR = './dataset/'
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
-GRID_SIZE = 100
+TILE_SIZE = 100
 
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
@@ -84,16 +84,16 @@ def draw_openpose(json_fpath, img_path):
 
 def prepare_orig_img(orig_img):
     bigger_dim_size = np.max(orig_img.shape)
-    scale_factor = bigger_dim_size / float(GRID_SIZE)
+    scale_factor = bigger_dim_size / float(TILE_SIZE)
     new_h = int(orig_img.shape[0] / scale_factor)
     new_w = int(orig_img.shape[1] / scale_factor)
     orig_img = cv2.resize(orig_img, (new_w, new_h))
 
     h, w, _ = orig_img.shape
-    h_off = int((GRID_SIZE - h) / 2)
-    w_off = int((GRID_SIZE - w) / 2)
+    h_off = int((TILE_SIZE - h) / 2)
+    w_off = int((TILE_SIZE - w) / 2)
 
-    full_img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
+    full_img = np.zeros((TILE_SIZE, TILE_SIZE, 3), 
             dtype=np.uint8)
     full_img[h_off:h_off+h, w_off:w_off+w] = orig_img
     return full_img
@@ -102,7 +102,7 @@ def prepare_orig_img(orig_img):
 def write_text(pose_2d_img, y_pred, y_targ):
     return cv2.putText(pose_2d_img,
             'Male' if y_pred == 0 else 'Female', 
-            (GRID_SIZE, 0), 
+            (TILE_SIZE, 0), 
             cv2.FONT_HERSHEY_SIMPLEX,
             0.1, 
             GREEN if y_pred == y_targ else RED,
@@ -115,9 +115,9 @@ def draw_pose_2d(pose_2d, img_size):
         return not np.any(kpt)
 
     pose_2d = pose_2d[:, :2]
-    pose_2d = fit_to_frame(pose_2d, GRID_SIZE)
+    pose_2d = fit_to_frame(pose_2d, TILE_SIZE)
 
-    img = np.zeros((GRID_SIZE, GRID_SIZE, 3), 
+    img = np.zeros((TILE_SIZE, TILE_SIZE, 3), 
             dtype=np.uint8)
 
     for kpt in pose_2d:
@@ -139,7 +139,7 @@ def draw_pose_2d(pose_2d, img_size):
 
 def create_grid(pose_2ds, Y_pred, Y_targ, img_paths):
     img_grid = np.zeros(
-            (pose_2ds.shape[0] * 2,  GRID_SIZE, GRID_SIZE, 3),
+            (pose_2ds.shape[0] * 2,  TILE_SIZE, TILE_SIZE, 3),
             dtype=np.uint8)
     pose_2ds = copy.deepcopy(pose_2ds)
     pose_2ds = np.squeeze(pose_2ds, axis=3)
