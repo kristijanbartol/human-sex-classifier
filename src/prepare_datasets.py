@@ -174,24 +174,24 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
 
             if data_type == 'test':
                 subdir_dict[subject_dirname] = { 
-                        'X' : [], 'Y': [], 'img': [] }
+                        'X' : [], 'Y': [], 'img': [], 'gt': [] }
 
             subject_dir = os.path.join(data_dir, subject_dirname)
             print(subject_dir)
             for action_dirname in sorted(os.listdir(subject_dir)):
 
+                action_dir = os.path.join(subject_dir, action_dirname)
+                pose_dir = os.path.join(action_dir, 'camera01')
+
                 if data_type == 'test':
                     if action_dirname not in subdir_dict:
                         subdir_dict[action_dirname] = { 
-                                'X' : [], 'Y': [], 'img': [] }
+                                'X' : [], 'Y': [], 'img': [], 'gt': [] }
 
                     # NOTE: Replace 'openpose' or 'gt' with 'gt'.
                     gt_dir = pose_dir.replace(subdir, 'gt') 
                     img_dir = pose_dir.replace(subdir, 'imgs')
-                    img_dir = os.path.join(img_dir, os.listdir(img_dir))
-
-                action_dir = os.path.join(subject_dir, action_dirname)
-                pose_dir = os.path.join(action_dir, 'camera01')
+                    img_dir = os.path.join(img_dir, os.listdir(img_dir)[0])
 
                 for pose_name in sorted(os.listdir(pose_dir)):
                     pose_path = os.path.join(pose_dir, pose_name)
@@ -234,7 +234,7 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                                 gender)
                         subdir_dict[subject_dirname]['img'].append(
                                 img_path)
-                        subdir_dict[subject_dir]['gt'].append(
+                        subdir_dict[subject_dirname]['gt'].append(
                                 gt_path)
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
@@ -261,7 +261,7 @@ def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):
                 f.write(img_path + '\n')
 
         with open(os.path.join(prepared_dir,
-            f'{subdir_key}_gtpaths.txt', 'w')) as f:
+            f'{subdir_key}_gtpaths.txt'), 'w') as f:
             for gt_path in subdir_dict[subdir_key]['gt']:
                 f.write(gt_path + '\n')
 
