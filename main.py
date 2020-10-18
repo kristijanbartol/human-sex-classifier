@@ -399,6 +399,8 @@ def main(opt):
                     subset_accs[key], epoch)
             writer.add_scalar(f'Confidence/Subsets/{key}',
                     subset_confs[key], epoch)
+            writer.add_scalar(f'OpenPose/Subsets/{key}',
+                    subset_openpose[key], epoch)
             writer.add_images(f'Subsets/{key}', subset_grids[key], 
                     epoch, dataformats='NHWC')
 

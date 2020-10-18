@@ -55,8 +55,8 @@ def mpjpe_2d_openpose(est, gt):
         for kpt_idx in range(est.shape[2]):
             kpt = est[pose_idx, 0, kpt_idx, :2]
             if np.any(kpt):
-                mpjpe += kpt - \
-                    gt[pose_idx][kpt_idx]
+                mpjpe += np.mean(np.abs(kpt - \
+                    gt[pose_idx][kpt_idx]))
                 counter += 1
 
         if counter > 0:
