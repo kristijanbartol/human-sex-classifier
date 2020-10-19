@@ -167,13 +167,14 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
 def extract_tb_sample(test_loader, model, batch_size):
     '''
-    Extract 4 correct and 4 wrong samples.
+    Extract 2 correct and 2 wrong samples.
     '''
     model.eval()
     num_correct = 0
     num_wrong = 0
     done = False
     sample_idxs = [-1] * 8
+    NUM = 2
 
     for bidx, batch in enumerate(test_loader):
         inputs = batch['X'].cuda()
@@ -189,14 +190,14 @@ def extract_tb_sample(test_loader, model, batch_size):
         for idx in range(outputs.shape[0]):
             ttl_idx = bidx * batch_size + idx
             if outputs[idx] == targets[idx]:
-                if num_correct < 4:
+                if num_correct < NUM:
                     sample_idxs[num_correct] = ttl_idx
                     num_correct += 1
             else:
-                if num_wrong < 4:
-                    sample_idxs[4 + num_wrong] = ttl_idx
+                if num_wrong < NUM:
+                    sample_idxs[NUM + num_wrong] = ttl_idx
                     num_wrong += 1
-            if num_correct == 4 and num_wrong == 4:
+            if num_correct == NUM and num_wrong == NUM:
                 done = True
                 break
 
