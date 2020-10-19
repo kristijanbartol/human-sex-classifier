@@ -24,7 +24,7 @@ import src.log as log
 import src.utils as utils
 from model import weight_init       # TODO: Do I need this???
 from src.data import ToTensor, ClassificationDataset
-from src.data_utils import one_hot, load_gt, mpjpe_2d_openpose
+from src.data_utils import one_hot, load_gt, mean_missing_parts, mpjpe_2d_openpose
 from src.vis import create_grid
 
 
@@ -313,6 +313,7 @@ def main(opt):
         subset_accs     = {}
         subset_confs    = {}
         subset_openpose = {}
+        subset_missing  = {}
         subset_grids    = {}
 
         if len(subset_loaders) > 0:
@@ -334,6 +335,8 @@ def main(opt):
                 gt_X = load_gt(sub_dataset.gt_paths)
                 subset_openpose[key] = mpjpe_2d_openpose(
                         sub_dataset.X, gt_X)
+                subset_missing[key] = mean_missing_parts(
+                        sub_dataset.X)
             else:
                 subset_openpose[key] = 0.
 
@@ -401,6 +404,8 @@ def main(opt):
                     subset_confs[key], epoch)
             writer.add_scalar(f'OpenPose/Subsets/{key}',
                     subset_openpose[key], epoch)
+            writer.add_scalar(f'Missing/Subsets/{key}',
+                    subset_missing[key], epoch)
             writer.add_images(f'Subsets/{key}', subset_grids[key], 
                     epoch, dataformats='NHWC')
 

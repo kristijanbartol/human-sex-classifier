@@ -45,6 +45,7 @@ def mpjpe_2d_openpose(est, gt):
 
     est = deepcopy(est)
     est = est[:, :2, :, :]
+    est *= 640.
     est = np.swapaxes(est, 1, 3)
 
     mmpjpe = 0.
@@ -54,9 +55,9 @@ def mpjpe_2d_openpose(est, gt):
 
         for kpt_idx in range(est.shape[2]):
             kpt = est[pose_idx, 0, kpt_idx, :2]
+            gt_ = gt[pose_idx, kpt_idx]
             if np.any(kpt):
-                mpjpe += np.mean(np.abs(kpt - \
-                    gt[pose_idx][kpt_idx]))
+                mpjpe += np.linalg.norm(kpt - gt_)
                 counter += 1
 
         if counter > 0:
@@ -65,7 +66,7 @@ def mpjpe_2d_openpose(est, gt):
             # Some 2D poses are all zeros.
             continue
 
-    mmpjpe /= est.shape[0]
+    mmpjpe = (mmpjpe / est.shape[0]) / 640. * 100.
     return mmpjpe
 
 
@@ -75,11 +76,13 @@ def mean_missing_parts(est):
     '''
     num_missing = 0
 
-    for pose_2d in est:
-        assert(pose_2d.shape[0] == 15)
+    est = deepcopy(est)
+    est = est[:, :2, :, :]
+    est = np.swapaxes(est, 1, 3)
 
-        for kpt in pose_2d:
-            if kpt[:2] == 0.:
+    for pose_2d in est:
+        for kpt in pose_2d[0]:
+            if not np.any(kpt):
                 num_missing += 1
 
     return float(num_missing) / est.shape[0]
