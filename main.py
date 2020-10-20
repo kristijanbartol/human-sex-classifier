@@ -340,6 +340,7 @@ def main(opt):
                         sub_dataset.X)
             else:
                 subset_openpose[key] = 0.
+                subset_missing[key] = 0.
 
             sample_idxs = extract_tb_sample(
                     subset_loaders[key], 
