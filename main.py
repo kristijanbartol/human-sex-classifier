@@ -9,6 +9,7 @@ from pprint import pprint
 import numpy as np
 from progress.bar import Bar as Bar
 from sklearn.metrics import accuracy_score
+import json
 
 import torch
 import torch.nn as nn
@@ -173,7 +174,7 @@ def extract_tb_sample(test_loader, model, batch_size):
     num_correct = 0
     num_wrong = 0
     done = False
-    sample_idxs = [-1] * 8
+    sample_idxs = [-1] * 4
     NUM = 2
 
     for bidx, batch in enumerate(test_loader):
@@ -203,6 +204,10 @@ def extract_tb_sample(test_loader, model, batch_size):
 
         if done:
             break
+
+    if not done:
+        print(f'>>> WARNING: Found only {num_correct}/2 ' 
+                f'correct and {num_wrong}/2 wrong samples')
 
     return sample_idxs
 
@@ -282,14 +287,6 @@ def main(opt):
         subset_loaders[subset.split] = DataLoader(subset, 
                 batch_size=opt.test_batch, shuffle=False, num_workers=opt.job)
 
-    if opt.test:
-        # TODO: This is currently broken.
-        scores = test(test_loader, model, 
-                criterion, num_kpts=opt.num_kpts, 
-                num_classes=opt.num_classes, inference=True)
-        test_dataset.report(scores)
-        sys.exit()
-
     cudnn.benchmark = True
 
     for epoch in range(start_epoch, opt.epochs):
@@ -297,12 +294,13 @@ def main(opt):
         print('==========================')
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))
 
-        glob_step, lr_now, loss_train, err_train, acc_train, conf_train = \
-                train(train_loader, model, criterion, optimizer, 
-                        num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
-                        lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, 
-                        lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
-                        max_norm=opt.max_norm)
+        if not opt.test:
+            glob_step, lr_now, loss_train, err_train, acc_train, conf_train = \
+                    train(train_loader, model, criterion, optimizer, 
+                            num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
+                            lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, 
+                            lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
+                            max_norm=opt.max_norm)
 
         loss_test, err_test, acc_test, conf_test = \
                 test(test_loader, model, criterion, num_kpts=opt.num_kpts, 
@@ -360,6 +358,20 @@ def main(opt):
             bar.finish()
         ###################
 
+        if opt.test:
+            subset_dicts = {
+                'acc': subset_accs,
+                'openpose': subset_openpose,
+                'missing': subset_missing
+            }
+            with open(f'report/{opt.name}_acc.json', 'w') as acc_f:
+                json.dump(subset_dicts, acc_f, indent=4)
+#           with open(f'report/{opt.name}.json', 'w') as rf:
+#               json.dump(json.dumps(subset_dicts), rf, indent=4)
+
+            print('>>> Exiting (test mode)...')
+            sys.exit()
+
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,
             loss_test, err_test, acc_test],
@@ -386,6 +398,7 @@ def main(opt):
                            'optimizer': optimizer.state_dict()},
                           ckpt_path=opt.ckpt,
                           is_best=False)
+        
 
         writer.add_scalar('Loss/train', loss_train, epoch)
         writer.add_scalar('Loss/test', loss_test, epoch)
