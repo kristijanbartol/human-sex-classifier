@@ -129,43 +129,14 @@ def prepare_peta(rootdir, dataset_name, centered=False,
                     elif idx_set_key == 'valid':
                         valid_X.append(pose_2d)
                         valid_Y.append(gender)
-                        subdir_dict[xdir_name]['X'].append(pose_2d)
-                        subdir_dict[xdir_name]['Y'].append(gender)
-                        subdir_dict[xdir_name]['img'].append(img_paths[idx])
                     else:
                         test_X.append(pose_2d)
                         test_Y.append(gender)
+                        subdir_dict[xdir_name]['X'].append(pose_2d)
+                        subdir_dict[xdir_name]['Y'].append(gender)
+                        subdir_dict[xdir_name]['img'].append(img_paths[idx])
                 else:
                     invalid_counter += 1
-
-        '''
-        for idx in range(len(fnames)):
-            kpt_path = os.path.join(xdir, fnames[idx])
-            pose_2d = process_json(kpt_path)
-            img_size = get_img_size(img_paths[idx])
-            pose_2d[:, :2] /= img_size
-#            assert(np.any(pose_2d[:, :2] > 1.)):
-            if centered:
-                pose_2d = move_to_center(pose_2d)
-            pose_2d = np.expand_dims(pose_2d, axis=0)
-            subject_id = int(fnames[idx].split('.')[0].split('_')[0])
-            gender = id_gender_dict[subject_id]
-            if gender is not None and np.any(pose_2d):
-                if idx < 0.7 * len(fnames):
-                    train_X.append(pose_2d)
-                    train_Y.append(gender)
-                elif idx <= 0.85 * len(fnames):
-                    valid_X.append(pose_2d)
-                    valid_Y.append(gender)
-                    subdir_dict[xdir_name]['X'].append(pose_2d)
-                    subdir_dict[xdir_name]['Y'].append(gender)
-                    subdir_dict[xdir_name]['img'].append(img_paths[idx])
-                else:
-                    test_X.append(pose_2d)
-                    test_Y.append(gender)
-            else:
-                invalid_counter += 1
-        '''
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)

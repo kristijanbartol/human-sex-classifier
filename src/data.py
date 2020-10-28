@@ -91,8 +91,8 @@ class ClassificationDataset(Dataset):
         return paths
 
     def create_subsets(self):
-        if self.split != 'valid':
-            print('WARNING: Do not create subsets if != valid!')
+        if self.split == 'train':
+            print('WARNING: Do not create subsets on train set!')
 
         npy_files = [x for x in os.listdir(self.rootdir) \
                 if 'train' not in x and 'test' not in x and 'valid' not in x \

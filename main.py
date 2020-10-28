@@ -214,7 +214,7 @@ def extract_tb_sample(test_loader, model, batch_size):
 
 def main(opt):
     start_epoch = 0
-    err_best = 1000
+    acc_best = 0.
     glob_step = 0
     lr_now = opt.lr
 
@@ -244,12 +244,12 @@ def main(opt):
         print(">>> loading ckpt from '{}'".format(opt.load))
         ckpt = torch.load(opt.load)
         start_epoch = ckpt['epoch']
-        err_best = ckpt['err']
+        acc_best = ckpt['acc']
         glob_step = ckpt['step']
         lr_now = ckpt['lr']
         model.load_state_dict(ckpt['state_dict'])
         optimizer.load_state_dict(ckpt['optimizer'])
-        print(">>> ckpt loaded (epoch: {} | err: {})".format(start_epoch, err_best))
+        print(">>> ckpt loaded (epoch: {} | acc: {})".format(start_epoch, acc_best))
     if opt.resume:
         logger = log.Logger(os.path.join(opt.ckpt, 'log.txt'), resume=True)
     else:
@@ -274,11 +274,13 @@ def main(opt):
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
                         shuffle=True, num_workers=opt.job)
 
+    split = 'test' if opt.test else 'valid'
+
     test_dataset = ClassificationDataset(
             name=opt.test_dataset,
             num_kpts=opt.num_kpts, 
             transforms=transforms,
-            split='valid',
+            split=split,
             arch=opt.arch,
             gt=opt.gt)
 
@@ -363,15 +365,16 @@ def main(opt):
         ###################
 
         if opt.test:
-            subset_dicts = {
-                'acc': subset_accs,
-                'openpose': subset_openpose,
-                'missing': subset_missing
-            }
-            with open(f'report/{opt.name}_acc.json', 'w') as acc_f:
-                json.dump(subset_dicts, acc_f, indent=4)
-#           with open(f'report/{opt.name}.json', 'w') as rf:
-#               json.dump(json.dumps(subset_dicts), rf, indent=4)
+            subset_accs['all'] = acc_test
+
+            report_idx = 0
+            report_path = f'report/{opt.name}-{report_idx}.json'
+            while os.path.exists(f'report/{opt.name}-{report_idx}.json'):
+                report_idx += 1
+            report_path = f'report/{opt.name}-{report_idx}.json'
+
+            with open(report_path, 'w') as acc_f:
+                json.dump(subset_accs, acc_f, indent=4)
 
             print('>>> Exiting (test mode)...')
             sys.exit()
@@ -382,13 +385,13 @@ def main(opt):
             ['int', 'float', 'float', 'float', 'float', 'float', 'float', 'float'])
 
         # save ckpt
-        is_best = err_test < err_best
-        err_best = min(err_test, err_best)
+        is_best = acc_test > acc_best
+        acc_best = max(acc_test, acc_best)
         if is_best:
             log.save_ckpt({'epoch': epoch + 1,
                            'lr': lr_now,
                            'step': glob_step,
-                           'err': err_best,
+                           'acc': acc_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
                           ckpt_path=opt.ckpt,
@@ -397,7 +400,7 @@ def main(opt):
             log.save_ckpt({'epoch': epoch + 1,
                            'lr': lr_now,
                            'step': glob_step,
-                           'err': err_best,
+                           'acc': acc_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
                           ckpt_path=opt.ckpt,
