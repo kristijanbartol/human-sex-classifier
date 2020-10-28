@@ -46,7 +46,6 @@ class LinearModel(nn.Module):
     def __init__(self,
                  linear_size=1024,
                  num_stage=2,
-                 num_views=4,
                  num_kpts=15,
                  p_dropout=0.5,
                  test=False,
@@ -56,7 +55,6 @@ class LinearModel(nn.Module):
         self.linear_size = linear_size
         self.p_dropout = p_dropout
         self.num_stage = num_stage
-        self.num_views = num_views
         self.num_kpts = num_kpts
         self.test = test
         self.exp_dir = exp_dir

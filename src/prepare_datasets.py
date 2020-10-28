@@ -46,7 +46,8 @@ def process_json(json_path):
     return pose_2d
 
 
-def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
+def prepare_peta(rootdir, dataset_name, centered=False, 
+        split_ratios=(0.8, 0.1, 0.1)):
 
     def get_gender_label_idx(line):
         for item_idx, item in enumerate(line.split(' ')):
@@ -58,7 +59,7 @@ def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
         img_size = max(img.shape[0], img.shape[1])
         return img_size
 
-    train_X, test_X, train_Y, test_Y = [], [], [], []
+    train_X, test_X, valid_X, train_Y, valid_Y, test_Y = [], [], [], [], [], []
     subdir_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
     invalid_counter = 0
@@ -89,12 +90,55 @@ def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
                 for x in fnames]
         img_paths = [os.path.join(img_dir, x) for x in img_names]
 
-        train_idxs = np.random.choice(
-                len(fnames), int(len(fnames) * train_ratio), replace=False)
-        test_idxs = np.arange(len(fnames))
-        test_idxs = np.delete(test_idxs, train_idxs, axis=0)
-        idxs = { 'train': train_idxs, 'test': test_idxs }
 
+        train_valid_part = split_ratios[0] + split_ratios[1]
+        train_part = split_ratios[0] / train_valid_part
+
+        train_valid_size = train_valid_part * len(fnames)
+        train_size = train_part * train_valid_size
+
+        train_valid_idxs = np.random.choice(
+                len(fnames), int(train_valid_size), replace=False)
+        train_idxs = train_valid_idxs[:int(train_size)]
+        valid_idxs = train_valid_idxs[int(train_size):]
+
+        test_idxs = np.arange(len(fnames))
+        test_idxs = np.delete(test_idxs, train_valid_idxs, axis=0)
+        idxs_dict = { 'train': train_idxs, 
+                      'valid': valid_idxs, 
+                      'test': test_idxs }
+
+
+        for idx_set_key in idxs_dict:
+            for idx in idxs_dict[idx_set_key]:
+                kpt_path = os.path.join(xdir, fnames[idx])
+                pose_2d = process_json(kpt_path)
+                img_size = get_img_size(img_paths[idx])
+                pose_2d[:, :2] /= img_size
+
+                if centered:
+                    pose_2d = move_to_center(pose_2d)
+
+                pose_2d = np.expand_dims(pose_2d, axis=0)
+                subject_id = int(fnames[idx].split('.')[0].split('_')[0])
+                gender = id_gender_dict[subject_id]
+                if gender is not None and np.any(pose_2d):
+                    if idx_set_key == 'train':
+                        train_X.append(pose_2d)
+                        train_Y.append(gender)
+                    elif idx_set_key == 'valid':
+                        valid_X.append(pose_2d)
+                        valid_Y.append(gender)
+                        subdir_dict[xdir_name]['X'].append(pose_2d)
+                        subdir_dict[xdir_name]['Y'].append(gender)
+                        subdir_dict[xdir_name]['img'].append(img_paths[idx])
+                    else:
+                        test_X.append(pose_2d)
+                        test_Y.append(gender)
+                else:
+                    invalid_counter += 1
+
+        '''
         for idx in range(len(fnames)):
             kpt_path = os.path.join(xdir, fnames[idx])
             pose_2d = process_json(kpt_path)
@@ -107,23 +151,29 @@ def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
             subject_id = int(fnames[idx].split('.')[0].split('_')[0])
             gender = id_gender_dict[subject_id]
             if gender is not None and np.any(pose_2d):
-                if idx < 0.8 * len(fnames):
+                if idx < 0.7 * len(fnames):
                     train_X.append(pose_2d)
                     train_Y.append(gender)
-                else:
-                    test_X.append(pose_2d)
-                    test_Y.append(gender)
+                elif idx <= 0.85 * len(fnames):
+                    valid_X.append(pose_2d)
+                    valid_Y.append(gender)
                     subdir_dict[xdir_name]['X'].append(pose_2d)
                     subdir_dict[xdir_name]['Y'].append(gender)
                     subdir_dict[xdir_name]['img'].append(img_paths[idx])
+                else:
+                    test_X.append(pose_2d)
+                    test_Y.append(gender)
             else:
                 invalid_counter += 1
+        '''
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
 
     train_X = np.array(train_X, dtype=np.float32)
     train_Y = np.array(train_Y, dtype=np.long)
+    valid_X = np.array(valid_X, dtype=np.float32)
+    valid_Y = np.array(valid_Y, dtype=np.long)
     test_X  = np.array(test_X, dtype=np.float32)
     test_Y  = np.array(test_Y, dtype=np.long)
 
@@ -143,12 +193,15 @@ def prepare_peta(rootdir, dataset_name, centered=False, train_ratio=0.8):
 
     np.save(os.path.join(prepared_dir, 'train_X.npy'), train_X)
     np.save(os.path.join(prepared_dir, 'train_Y.npy'), train_Y)
+    np.save(os.path.join(prepared_dir, 'valid_X.npy'), valid_X)
+    np.save(os.path.join(prepared_dir, 'valid_Y.npy'), valid_Y)
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
+    total_samples = invalid_counter + train_X.shape[0] + \
+            valid_X.shape[0] + test_X.shape[0]
     print(f'Number of invalid samples: {invalid_counter}')
-    print(f'Total number of samples: \
-            {invalid_counter + train_X.shape[0] + test_X.shape[0]}')
+    print(f'Total number of samples: {total_samples}')
 
 
 def prepare_3dpeople(rootdir, dataset_name, openpose=False, centered=False):

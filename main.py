@@ -278,7 +278,7 @@ def main(opt):
             name=opt.test_dataset,
             num_kpts=opt.num_kpts, 
             transforms=transforms,
-            split='test',
+            split='valid',
             arch=opt.arch,
             gt=opt.gt)
 
