@@ -44,12 +44,14 @@ class ToTensor(object):
 
 class ClassificationDataset(Dataset):
 
-    def __init__(self, name, num_kpts, transforms, split, 
-            gt=False, gt_paths=None, img_paths=None):
+    def __init__(self, name, num_kpts, transforms, split,
+            arch='cnn', gt=False, gt_paths=None, 
+            img_paths=None):
         self.name = name
         self.num_kpts = num_kpts
         self.transforms = transforms
         self.split = split
+        self.arch = arch
         self.gt = gt
         self.rootdir = f'./dataset/{name}/'
         self.gt_paths = gt_paths
@@ -67,7 +69,12 @@ class ClassificationDataset(Dataset):
         self.Y = np.load(os.path.join(self.rootdir, f'{split}_Y.npy'))
         self.X = np.load(os.path.join(self.rootdir, f'{split}_X.npy'))
         self.X = self.X[:, :, kpts_set, :]
-        self.X = np.swapaxes(self.X, 1, 3)
+        if arch == 'cnn':
+            self.X = np.swapaxes(self.X, 1, 3)
+        else:
+            self.X = np.squeeze(self.X, axis=1)
+            self.X = self.X[:, :, :2]
+            self.X = np.reshape(self.X, (-1, 30))
 
     def __load_paths(self, subset_name, path_type):
         paths_path = os.path.join(self.rootdir, 
@@ -102,6 +109,7 @@ class ClassificationDataset(Dataset):
                 self.num_kpts, 
                 self.transforms,
                 split=subset_name,
+                arch=self.arch,
                 gt=self.gt,
                 gt_paths=gt_paths,
                 img_paths=img_paths))

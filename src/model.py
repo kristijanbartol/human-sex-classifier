@@ -59,13 +59,10 @@ class LinearModel(nn.Module):
         self.num_views = num_views
         self.num_kpts = num_kpts
         self.test = test
-        self.weights_saved = False
         self.exp_dir = exp_dir
 
-        # [2D] input_size: NUM_KPTS x NUM_COORD x NUM_VIEWS
-        self.input_size = num_kpts * 2 * num_views
-        # [3D] output_size: NUM_KPTS x NUM_COORD
-        self.output_size = num_kpts * 3
+        self.input_size = num_kpts * 2
+        self.output_size = 2
 
         # process input to linear size
         self.w1 = nn.Linear(self.input_size, self.linear_size)
@@ -94,13 +91,5 @@ class LinearModel(nn.Module):
             y = self.linear_stages[i](y)
 
         y = self.w2(y)
-
-        if self.test and not self.weights_saved:
-            self.weights_saved = True
-            weights = self.w1.weight.detach().cpu().numpy()
-            img_path = join(self.exp_dir, 'weights.png')
-            np_path = join(self.exp_dir, 'weights.npy')
-            plt.imsave(img_path, weights)
-            np.save(np_path, weights)
 
         return y

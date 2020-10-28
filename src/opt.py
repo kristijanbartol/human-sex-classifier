@@ -68,6 +68,7 @@ class Options:
         self.parser.add_argument('--epochs',         type=int,    default=200)
         self.parser.add_argument('--train_batch',    type=int,    default=64)
         self.parser.add_argument('--test_batch',     type=int,    default=64)
+        self.parser.add_argument('--arch',           type=str,    default='cnn')
         self.parser.add_argument('--job',            type=int,    default=0, help='# subprocesses to use for data loading')
         self.parser.add_argument('--no_max',         dest='max_norm', action='store_false', help='if use max_norm clip on grad')
         self.parser.add_argument('--max',            dest='max_norm', action='store_true', help='if use max_norm clip on grad')
@@ -82,7 +83,7 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        self.opt.name = 'people3d-subsets-gt'
+        self.opt.name = 'test'
         ckpt = os.path.join(self.opt.ckpt, self.opt.name)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)

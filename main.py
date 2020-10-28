@@ -23,7 +23,7 @@ from torchvision.models.resnet import ResNet, BasicBlock, Bottleneck
 from src.opt import Options
 import src.log as log
 import src.utils as utils
-from model import weight_init       # TODO: Do I need this???
+from model import LinearModel, weight_init
 from src.data import ToTensor, ClassificationDataset
 from src.data_utils import one_hot, load_gt, mean_missing_parts, mpjpe_2d_openpose
 from src.vis import create_grid
@@ -228,10 +228,11 @@ def main(opt):
 
     # create model
     print(">>> creating model")
-    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
+#    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
     # TODO: This is how to avoid weird data reshaping for non-3-channel inputs.
     # Have ResNet model take in grayscale rather than RGB
 #    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    model = LinearModel()
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
@@ -267,6 +268,7 @@ def main(opt):
             num_kpts=opt.num_kpts,
             transforms=transforms,
             split='train',
+            arch=opt.arch,
             gt=opt.gt))
     train_dataset = ConcatDataset(train_datasets)
     train_loader = DataLoader(train_dataset, batch_size=opt.train_batch,
@@ -277,6 +279,7 @@ def main(opt):
             num_kpts=opt.num_kpts, 
             transforms=transforms,
             split='test',
+            arch=opt.arch,
             gt=opt.gt)
 
     test_loader = DataLoader(test_dataset, batch_size=opt.test_batch,
@@ -347,9 +350,10 @@ def main(opt):
             sample_X = sub_dataset.X[sample_idxs]
             sample_img_paths = [sub_dataset.img_paths[x]
                     for x in sample_idxs]
-            subset_grids[key]  = create_grid(
-                    sample_X,
-                    sample_img_paths)
+            if opt.arch == 'cnn':
+                subset_grids[key]  = create_grid(
+                        sample_X,
+                        sample_img_paths)
 
             bar.suffix = f'({key_idx+1}/{len(subset_loaders)}) | {key}'
             bar.next()
@@ -421,8 +425,9 @@ def main(opt):
                     subset_openpose[key], epoch)
             writer.add_scalar(f'Missing/Subsets/{key}',
                     subset_missing[key], epoch)
-            writer.add_images(f'Subsets/{key}', subset_grids[key], 
-                    epoch, dataformats='NHWC')
+            if opt.arch == 'cnn':
+                writer.add_images(f'Subsets/{key}', subset_grids[key], 
+                        epoch, dataformats='NHWC')
 
     logger.close()
     writer.close()
