@@ -228,11 +228,13 @@ def main(opt):
 
     # create model
     print(">>> creating model")
-#    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
     # TODO: This is how to avoid weird data reshaping for non-3-channel inputs.
     # Have ResNet model take in grayscale rather than RGB
 #    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-    model = LinearModel()
+    if opt.arch == 'cnn':
+        model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=opt.num_classes)
+    else:
+        model = LinearModel()
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
@@ -377,7 +379,7 @@ def main(opt):
                 json.dump(subset_accs, acc_f, indent=4)
 
             print('>>> Exiting (test mode)...')
-            sys.exit()
+            break
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, err_train, acc_train,

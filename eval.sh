@@ -3,11 +3,14 @@
 # $1 - dataset
 # $2 - dataset name
 
-for i in {1..10}
+for i in 1 2 3 4 5 6 7 8 9 10
 do
 	python3 src/prepare_datasets.py --dataset $1 --name $2
-	python3 main.py --name $2 --train_datasets $2 --test_dataset $2 --arch fcn
-	python3 main.py --name $2 --train_datasets $2 --test_dataset $2 --arch fcn \
-		--test --load checkpoint/$2/ckpt_best.pth.tar
+	for j in 1 2 3
+	do
+		python3 main.py --name $2 --train_datasets $2 --test_dataset $2 --arch fcn
+		python3 main.py --name $2 --train_datasets $2 --test_dataset $2 --arch fcn \
+			--test --load checkpoint/$2/ckpt_best.pth.tar
+	done
 done
 

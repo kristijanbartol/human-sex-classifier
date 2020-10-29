@@ -24,7 +24,7 @@ DATASET_DIR = './dataset/'
 PEOPLE3D_H = 480
 PEOPLE3D_W = 640
 
-TILE_SIZE = 100
+TILE_SIZE = 200
 
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
@@ -56,25 +56,29 @@ def draw_txt(txt_path):
     draw_keypoints(kpts_2d, 480, 640)
 
 
-def draw_openpose(json_fpath, img_path):
-    # TODO: Put original image as background.
-    #img = np.zeros((1000, 1000, 3), dtype=np.uint8)
-    img = cv2.imread(img_path)
+def draw_openpose(json_fpath, img_path=None):
+    if img_path is None:
+        img = np.ones((250, 250, 3), dtype=np.uint8) * 255
+    else:
+        img = cv2.imread(img_path)
 
     with open(json_fpath) as fjson:
         data = json.load(fjson)
     pose_2d = np.array(data['people'][0]['pose_keypoints_2d'], dtype=np.float32)
     pose_2d = np.delete(pose_2d, np.arange(2, pose_2d.size, 3))
-    print(pose_2d)
-    for idx in range(int(pose_2d.shape[0] / 2)):
-        coord = (pose_2d[idx*2], pose_2d[idx*2+1])
-        print(coord)
-        img = cv2.circle(img, coord, radius=1, color=(0, 255, 0), thickness=-1)
+    pose_2d = pose_2d[:30]
 
-    for part in OPENPOSE_PARTS_15:
+    for part_idx, part in enumerate(OPENPOSE_PARTS_15):
         start_point = (pose_2d[part[0]*2], pose_2d[part[0]*2+1])
         end_point = (pose_2d[part[1]*2], pose_2d[part[1]*2+1])
-        img = cv2.line(img, start_point, end_point, (255, 0, 0), thickness=1)
+        if part_idx in [0, 1, 2, 3, 7, 8, 9, 10]:
+            img = cv2.line(img, start_point, end_point, (255, 0, 0), thickness=2)
+        else:
+            img = cv2.line(img, start_point, end_point, (0, 255, 0), thickness=2)
+
+    for idx in range(int(pose_2d.shape[0] / 2)):
+        coord = (pose_2d[idx*2], pose_2d[idx*2+1])
+        img = cv2.circle(img, coord, radius=1, color=(0, 0, 255), thickness=2)
 
     cv2.imshow('2d keypoints', img)
     cv2.waitKey(0)
@@ -93,8 +97,8 @@ def prepare_orig_img(orig_img):
     h_off = int((TILE_SIZE - h) / 2)
     w_off = int((TILE_SIZE - w) / 2)
 
-    full_img = np.zeros((TILE_SIZE, TILE_SIZE, 3), 
-            dtype=np.uint8)
+    full_img = np.ones((TILE_SIZE, TILE_SIZE, 3), 
+            dtype=np.uint8) * 255
     full_img[h_off:h_off+h, w_off:w_off+w] = orig_img
     return full_img
 
@@ -107,22 +111,26 @@ def draw_pose_2d(pose_2d, img_size):
     pose_2d = pose_2d[:, :2]
     pose_2d = fit_to_frame(pose_2d, TILE_SIZE)
 
-    img = np.zeros((TILE_SIZE, TILE_SIZE, 3), 
-            dtype=np.uint8)
+    img = np.ones((TILE_SIZE, TILE_SIZE, 3), 
+            dtype=np.uint8) * 255
+
+    for part_idx, part in enumerate(OPENPOSE_PARTS_15):
+        start_point = tuple(pose_2d[part[0]])
+        end_point = tuple(pose_2d[part[1]])
+        if is_zero(start_point) or is_zero(end_point):
+            continue
+        if part_idx in [0, 1, 2, 3, 7, 8, 9, 10]:
+            img = cv2.line(img, start_point, end_point, 
+                    (0, 0, 255), thickness=2)
+        else:
+            img = cv2.line(img, start_point, end_point, 
+                    (0, 255, 0), thickness=2)
 
     for kpt in pose_2d:
         if is_zero(kpt):
             continue
         img = cv2.circle(img, tuple(kpt), radius=1, 
-                color=(0, 255, 0), thickness=-1)
-
-    for part in OPENPOSE_PARTS_15:
-        start_point = tuple(pose_2d[part[0]])
-        end_point = tuple(pose_2d[part[1]])
-        if is_zero(start_point) or is_zero(end_point):
-            continue
-        img = cv2.line(img, start_point, end_point, 
-                (255, 0, 0), thickness=1)
+                color=(255, 0, 0), thickness=2)
 
     return img
 
@@ -141,8 +149,8 @@ def create_grid(pose_2ds, img_paths):
         orig_img = prepare_orig_img(orig_img)
 
         pose_2d_img = draw_pose_2d(pose_2d, img_size)
-        img_grid[2*pose_idx] = pose_2d_img
-        img_grid[2*pose_idx+1] = orig_img
+        img_grid[2*pose_idx] = orig_img
+        img_grid[2*pose_idx+1] = pose_2d_img
 
     return img_grid
 
@@ -150,5 +158,6 @@ def create_grid(pose_2ds, img_paths):
 
 
 if __name__ == '__main__':
-    pass
+    kpts_path = '/home/kristijan/phd/datasets/PETA/openpose/TownCentre/5_52_keypoints.json'
+    draw_openpose(kpts_path)
 

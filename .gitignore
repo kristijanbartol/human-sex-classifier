@@ -2,6 +2,8 @@
 poses/
 dataset/3dpeople/*
 !dataset/3dpeople/train.txt
+report/*.json
+report/*.png
 
 
 ## PyTorch-specific ##
