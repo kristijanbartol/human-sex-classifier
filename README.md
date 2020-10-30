@@ -4,6 +4,10 @@
 
 An implementation for the "Can Human Sex Be Learned Using Only 2D Keypoint Estimations?" paper.
 
+## Installation
+
+Use `pip3 install requirements.txt` or `docker build -t sex-recognition .`.
+
 ## Prepare, train and evaluate
 
 To run the training, first download ([PETA](http://mmlab.ie.cuhk.edu.hk/projects/PETA.html) and/or [3DPeople](https://cv.iri.upc-csic.es/)) and prepare the datasets:
