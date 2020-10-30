@@ -6,6 +6,7 @@ import torch, torchvision
 from time import time
 import math
 import random
+from sklearn import metrics
 
 from const import H, W, PELVIS, RADIUS, K, KPTS_15
 
@@ -14,6 +15,29 @@ def one_hot(labels, num_classes):
     oh_labels = np.zeros((labels.size, num_classes))
     oh_labels[np.arange(labels.size), labels] = 1.
     return oh_labels
+
+
+def calc_auc(targets, outputs):
+    '''
+    Calculate AUC.
+    
+    Need to first perform argsort per labels, as
+    sklearn expects it.
+
+    :targets: labels
+    :outputs: model predictions
+
+    :auc: area under curve for given predictions
+    '''
+    sort_idxs = np.argsort(targets)
+    targets = targets[sort_idxs]
+    outputs = outputs[sort_idxs]
+
+    fpr, tpr, thresholds = metrics.roc_curve(
+            targets, outputs, pos_label=1)
+    auc = metrics.auc(fpr, tpr)
+
+    return auc
 
 
 def load_pose_2d_txt(gt_path):

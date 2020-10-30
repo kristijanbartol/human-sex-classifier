@@ -8,7 +8,7 @@ import time
 from pprint import pprint
 import numpy as np
 from progress.bar import Bar as Bar
-from sklearn.metrics import accuracy_score
+from sklearn import metrics
 import json
 
 import torch
@@ -25,7 +25,8 @@ import src.log as log
 import src.utils as utils
 from model import LinearModel, weight_init
 from src.data import ToTensor, ClassificationDataset
-from src.data_utils import one_hot, load_gt, mean_missing_parts, mpjpe_2d_openpose
+from src.data_utils import one_hot, load_gt, mean_missing_parts, \
+        mpjpe_2d_openpose, calc_auc
 from src.vis import create_grid
 
 
@@ -36,7 +37,7 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
 
     model.train()
 
-    errs, accs, confs = [], [], []
+    errs, accs = [], []
     start = time.time()
     batch_time = 0
     bar = Bar('>>>', fill='>', max=len(train_loader))
@@ -71,11 +72,10 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
         targets = one_hot(targets.data.cpu().numpy(), num_classes)
 
         errs.append(np.mean(np.abs(outputs - targets)))
-        accs.append(accuracy_score(
+        accs.append(metrics.accuracy_score(
             np.argmax(targets, axis=1),
             np.argmax(outputs, axis=1))
         )
-        confs.append(np.mean(outputs[np.argmax(outputs, axis=1)]))
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -94,10 +94,9 @@ def train(train_loader, model, criterion, optimizer, num_kpts=15, num_classes=20
 
     err = np.mean(np.array(errs, dtype=np.float32))
     acc = np.mean(np.array(accs, dtype=np.float32))
-    conf = np.mean(np.array(confs, dtype=np.float32))
     print (">>> train error: {} <<<".format(err))
     print (">>> train accuracy: {} <<<".format(acc))
-    return glob_step, lr_now, losses.avg, err, acc, conf
+    return glob_step, lr_now, losses.avg, err, acc
 
 
 def test(test_loader, model, criterion, num_kpts=15, num_classes=2, 
@@ -106,7 +105,8 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
 
     model.eval()
     
-    errs, accs, confs = [], [], []
+    errs, accs = [], []
+    all_outputs, all_targets = [], []
     start = time.time()
     batch_time = 0
     if log:
@@ -128,16 +128,19 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
         softmax = nn.Softmax()
         outputs = softmax(outputs)
 
-        outputs = outputs.data.cpu().numpy()
-        targets = one_hot(targets.data.cpu().numpy(), num_classes)
 
-        # TODO: This is not completely correct (per batch).
-        errs.append(np.mean(np.abs(outputs - targets)))
-        accs.append(accuracy_score(
-            np.argmax(targets, axis=1),
-            np.argmax(outputs, axis=1))
-        )
-        confs.append(np.mean(outputs[np.argmax(outputs, axis=1)]))
+        outputs = outputs.data.cpu().numpy()
+        targets = targets.data.cpu().numpy()
+
+
+        all_outputs.append(outputs)
+        all_targets.append(targets)
+
+#        errs.append(np.mean(np.abs(outputs - targets)))
+#        accs.append(accuracy_score(
+#            np.argmax(targets, axis=1),
+#            np.argmax(outputs, axis=1))
+#        )
 
         # update summary
         if (i + 1) % 100 == 0:
@@ -154,16 +157,25 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
                         loss=losses.avg)
             bar.next()
 
-    err = np.mean(np.array(errs))
-    acc = np.mean(np.array(accs))
-    conf = np.mean(np.array(confs))
+#    err = np.mean(np.array(errs))
+#    acc = np.mean(np.array(accs))
+
+    all_outputs = np.concatenate(all_outputs)
+    all_targets = np.concatenate(all_targets)
+    
+    all_outputs = np.argmax(all_outputs, axis=1)
+
+    err = np.mean(np.abs(all_outputs - all_targets))
+    acc = np.mean(metrics.accuracy_score(all_targets, all_outputs))
+    auc = calc_auc(all_targets, all_outputs)
+    prec = metrics.average_precision_score(all_targets, all_outputs)
 
     if log:
         bar.finish()
         print('>>> test error: {} <<<'.format(err))
         print('>>> test accuracy: {} <<<'.format(acc)) 
 
-    return losses.avg, err, acc, conf
+    return losses.avg, err, acc, auc, prec 
 
 
 def extract_tb_sample(test_loader, model, batch_size):
@@ -302,14 +314,14 @@ def main(opt):
         print('>>> epoch: {} | lr: {:.5f}'.format(epoch + 1, lr_now))
 
         if not opt.test:
-            glob_step, lr_now, loss_train, err_train, acc_train, conf_train = \
+            glob_step, lr_now, loss_train, err_train, acc_train = \
                     train(train_loader, model, criterion, optimizer, 
                             num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
                             lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, 
                             lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
                             max_norm=opt.max_norm)
 
-        loss_test, err_test, acc_test, conf_test = \
+        loss_test, err_test, acc_test, auc_test, prec_test = \
                 test(test_loader, model, criterion, num_kpts=opt.num_kpts, 
                         num_classes=opt.num_classes, batch_size=opt.test_batch)
 
@@ -317,7 +329,6 @@ def main(opt):
         subset_losses   = {}
         subset_errs     = {}
         subset_accs     = {}
-        subset_confs    = {}
         subset_openpose = {}
         subset_missing  = {}
         subset_grids    = {}
@@ -326,7 +337,7 @@ def main(opt):
             bar = Bar('>>>', fill='>', max=len(subset_loaders))
 
         for key_idx, key in enumerate(subset_loaders):
-            loss_sub, err_sub, acc_sub, conf_sub = test(
+            loss_sub, err_sub, acc_sub, _, _ = test(
                     subset_loaders[key], model, criterion, 
                     num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
                     batch_size=4, log=False)
@@ -334,7 +345,6 @@ def main(opt):
             subset_losses[key] = loss_sub
             subset_errs[key]   = err_sub
             subset_accs[key]   = acc_sub
-            subset_confs[key]  = conf_sub
 
             sub_dataset = subset_loaders[key].dataset
             if sub_dataset.gt_paths is not None:
@@ -368,6 +378,11 @@ def main(opt):
 
         if opt.test:
             subset_accs['all'] = acc_test
+            report_dict = {
+                'acc': subset_accs,
+                'auc': auc_test,
+                'prec': prec_test
+            }
 
             report_idx = 0
             report_path = f'report/{opt.name}-{report_idx}.json'
@@ -376,7 +391,7 @@ def main(opt):
             report_path = f'report/{opt.name}-{report_idx}.json'
 
             with open(report_path, 'w') as acc_f:
-                json.dump(subset_accs, acc_f, indent=4)
+                json.dump(report_dict, acc_f, indent=4)
 
             print('>>> Exiting (test mode)...')
             break
@@ -415,8 +430,6 @@ def main(opt):
         writer.add_scalar('Error/test', err_test, epoch)
         writer.add_scalar('Accuracy/train', acc_train, epoch)
         writer.add_scalar('Accuracy/test', acc_test, epoch)
-        writer.add_scalar('Confidence/train', conf_train, epoch)
-        writer.add_scalar('Confidence/test', conf_test, epoch)
         for key in subset_losses:
             writer.add_scalar(f'Loss/Subsets/{key}', 
                     subset_losses[key], epoch)
@@ -424,8 +437,6 @@ def main(opt):
                     subset_errs[key], epoch)
             writer.add_scalar(f'Accuracy/Subsets/{key}', 
                     subset_accs[key], epoch)
-            writer.add_scalar(f'Confidence/Subsets/{key}',
-                    subset_confs[key], epoch)
             writer.add_scalar(f'OpenPose/Subsets/{key}',
                     subset_openpose[key], epoch)
             writer.add_scalar(f'Missing/Subsets/{key}',
