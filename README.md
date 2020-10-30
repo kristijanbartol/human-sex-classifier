@@ -1,4 +1,4 @@
-# Gender classifier
+# Human sex classifier
 
 ## Introduction
 
