@@ -163,12 +163,13 @@ def test(test_loader, model, criterion, num_kpts=15, num_classes=2,
     all_outputs = np.concatenate(all_outputs)
     all_targets = np.concatenate(all_targets)
     
-    all_outputs = np.argmax(all_outputs, axis=1)
+    pred_values = np.amax(all_outputs, axis=1)
+    pred_labels = np.argmax(all_outputs, axis=1)
 
-    err = np.mean(np.abs(all_outputs - all_targets))
-    acc = np.mean(metrics.accuracy_score(all_targets, all_outputs))
-    auc = calc_auc(all_targets, all_outputs)
-    prec = metrics.average_precision_score(all_targets, all_outputs)
+    err = np.mean(np.abs(pred_values - all_targets))
+    acc = np.mean(metrics.accuracy_score(all_targets, pred_labels))
+    auc = calc_auc(all_targets, pred_values)
+    prec = metrics.average_precision_score(all_targets, pred_values)
 
     if log:
         bar.finish()
@@ -390,6 +391,7 @@ def main(opt):
                 report_idx += 1
             report_path = f'report/{opt.name}-{report_idx}.json'
 
+            print(f'>>> Saving report to {report_path}...')
             with open(report_path, 'w') as acc_f:
                 json.dump(report_dict, acc_f, indent=4)
 
