@@ -381,8 +381,8 @@ def main(opt):
             subset_accs['all'] = acc_test
             report_dict = {
                 'acc': subset_accs,
-                'auc': auc_test,
-                'prec': prec_test
+                'auc': { 'all': auc_test },
+                'prec':{ 'all':  prec_test }
             }
 
             report_idx = 0
