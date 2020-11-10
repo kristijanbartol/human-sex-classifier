@@ -2,7 +2,7 @@
 
 ## Introduction
 
-An implementation for the "Can Human Sex Be Learned Using Only 2D Keypoint Estimations?" paper.
+An implementation for the "Can Human Sex Be Learned Using Only 2D Keypoint Estimations?" paper ([arXiv](https://arxiv.org/abs/2011.03104)).
 
 ## Installation
 
