@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import numpy as np
 from copy import deepcopy
@@ -44,6 +45,49 @@ def process_json(json_path):
     except:
         pass
     return pose_2d
+    
+
+# TODO: Move to data_utils.py
+def set_missing_joints(pose_2d):
+    # Mid hip.
+    if not np.any(pose_2d[8][:2]):
+        if not np.any(pose_2d[1][:2]):
+            return None
+        pose_2d[8] = pose_2d[1]
+
+    # Right leg.
+    idxs = [8, 9, 10, 11]
+    for idx in idxs[1:]:
+        if not np.any(pose_2d[idx][:2]):
+            pose_2d[idx] = pose_2d[idx-1]
+
+    # Left leg.
+    idxs = [8, 12, 13, 14]
+    for idx in idxs[1:]:
+        if not np.any(pose_2d[idx][:2]):
+            pose_2d[idxs] = pose_2d[idx-1]
+
+    # Neck.
+    if not np.any(pose_2d[1][:2]):
+        pose_2d[1] = pose_2d[8]
+
+    # Right arm.
+    idxs = [1, 2, 3, 4]
+    for idx in idxs[1:]:
+        if not np.any(pose_2d[idx][:2]):
+            pose_2d[idx] = pose_2d[idx-1]
+
+    # Left arm.
+    idxs = [1, 5, 6, 7]
+    for idx in idxs[1:]:
+        if not np.any(pose_2d[idx][:2]):
+            pose_2d[idx] = pose_2d[idx-1]
+
+    # Nose.
+    if not np.any(pose_2d[0][:2]):
+        pose_2d[0] = pose_2d[1]
+
+    return pose_2d
 
 
 def prepare_peta(rootdir, dataset_name, centered=False, 
@@ -62,16 +106,15 @@ def prepare_peta(rootdir, dataset_name, centered=False,
     train_X, test_X, valid_X, train_Y, valid_Y, test_Y = [], [], [], [], [], []
     subdir_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
-    invalid_counter = 0
+    invalid_counters = []
     last_idx = 0
-    for xdir_name in sorted(os.listdir(openpose_dir)):
+    for xdir_idx, xdir_name in enumerate(sorted(os.listdir(openpose_dir))):
+        invalid_counters.append(0)
         subdir_dict[xdir_name] = { 'X' : [], 'Y': [], 'img': [] }
         xdir = os.path.join(openpose_dir, xdir_name)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
         label_path = os.path.join(img_dir, 'Label.txt')
         fnames = sorted(os.listdir(xdir), key=lambda x: int(x.split('_')[0]))
-
-        print(f'{xdir_name} ({len(fnames)})')
 
         with open(label_path) as flabel:
             labels = [x[:-1] for x in flabel.readlines()]
@@ -122,7 +165,10 @@ def prepare_peta(rootdir, dataset_name, centered=False,
                 pose_2d = np.expand_dims(pose_2d, axis=0)
                 subject_id = int(fnames[idx].split('.')[0].split('_')[0])
                 gender = id_gender_dict[subject_id]
-                if gender is not None and np.any(pose_2d):
+
+                pose_2d[0] = set_missing_joints(pose_2d[0])
+#                if gender is not None and np.any(pose_2d):
+                if gender is not None and not np.all(np.isnan(pose_2d[0])):
                     if idx_set_key == 'train':
                         train_X.append(pose_2d)
                         train_Y.append(gender)
@@ -136,7 +182,9 @@ def prepare_peta(rootdir, dataset_name, centered=False,
                         subdir_dict[xdir_name]['Y'].append(gender)
                         subdir_dict[xdir_name]['img'].append(img_paths[idx])
                 else:
-                    invalid_counter += 1
+                    invalid_counters[xdir_idx] += 1
+        
+        print(f'{xdir_name} ({len(fnames)-invalid_counters[xdir_idx]}/{len(fnames)})')
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
@@ -169,9 +217,10 @@ def prepare_peta(rootdir, dataset_name, centered=False,
     np.save(os.path.join(prepared_dir, 'test_X.npy'), test_X)
     np.save(os.path.join(prepared_dir, 'test_Y.npy'), test_Y)
 
-    total_samples = invalid_counter + train_X.shape[0] + \
+    num_invalid = sum(invalid_counters)
+    total_samples = num_invalid + train_X.shape[0] + \
             valid_X.shape[0] + test_X.shape[0]
-    print(f'Number of invalid samples: {invalid_counter}')
+    print(f'Number of invalid samples: {num_invalid}')
     print(f'Total number of samples: {total_samples}')
 
 
@@ -442,5 +491,6 @@ if __name__ == '__main__':
             prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
                     args.name, args.scale, args.downscale, args.centered)
     else:
-        prepare_peta('/home/kristijan/phd/datasets/PETA/', args.name)
+#        prepare_peta('/home/kristijan/phd/datasets/PETA/', args.name)
+        prepare_peta('/data/PETA/', args.name)
 
