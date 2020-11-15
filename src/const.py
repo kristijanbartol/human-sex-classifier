@@ -132,6 +132,24 @@ H36M_TEST  = [9, 11]
 H36M_READ_ROOT  = '/h36m-fetch/processed/'
 H36M_WRITE_ROOT = 'dataset/h36m/'
 
+OPENPOSE_KPTS = [
+    0,      # nose
+    1,      # neck
+    2,      # rshoulder
+    3,      # relbow
+    4,      # rwrist
+    5,      # lshoulder
+    6,      # lelbow
+    7,      # lwrist
+    8,      # midhip
+    9,      # rhip
+    10,     # rknee
+    11,     # rankle
+    12,     # lhip
+    13,     # lknee
+    14      # lankle
+]
+
 OPENPOSE_PARTS_15 = [
     (0, 1),
     (1, 2),
