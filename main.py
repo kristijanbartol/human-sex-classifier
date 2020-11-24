@@ -330,6 +330,8 @@ def main(opt):
         subset_losses   = {}
         subset_errs     = {}
         subset_accs     = {}
+        subset_aucs     = {}
+        subset_precs    = {}
         subset_openpose = {}
         subset_missing  = {}
         subset_grids    = {}
@@ -338,7 +340,7 @@ def main(opt):
             bar = Bar('>>>', fill='>', max=len(subset_loaders))
 
         for key_idx, key in enumerate(subset_loaders):
-            loss_sub, err_sub, acc_sub, _, _ = test(
+            loss_sub, err_sub, acc_sub, auc_sub, prec_sub = test(
                     subset_loaders[key], model, criterion, 
                     num_kpts=opt.num_kpts, num_classes=opt.num_classes, 
                     batch_size=4, log=False)
@@ -346,6 +348,8 @@ def main(opt):
             subset_losses[key] = loss_sub
             subset_errs[key]   = err_sub
             subset_accs[key]   = acc_sub
+            subset_aucs[key]   = auc_sub
+            subset_precs[key]  = prec_sub
 
             sub_dataset = subset_loaders[key].dataset
             if sub_dataset.gt_paths is not None:
@@ -379,10 +383,12 @@ def main(opt):
 
         if opt.test:
             subset_accs['all'] = acc_test
+            subset_aucs['all'] = auc_test
+            subset_precs['all'] = prec_test
             report_dict = {
                 'acc': subset_accs,
-                'auc': { 'all': auc_test },
-                'prec':{ 'all':  prec_test }
+                'auc': subset_aucs,
+                'prec': subset_precs
             }
 
             report_idx = 0

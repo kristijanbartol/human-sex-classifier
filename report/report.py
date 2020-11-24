@@ -10,7 +10,7 @@ if __name__ == '__main__':
     acc_data = {}
     avgs = {}
 
-    json_names = [x for x in os.listdir('./') if dataset_name in x]
+    json_names = [x for x in os.listdir('./') if x.startswith(f'{dataset_name}-')]
     for json_name in json_names:
         with open(json_name) as fjson:
             report_dict = json.load(fjson)
@@ -29,12 +29,16 @@ if __name__ == '__main__':
                 avgs[metric_key].append(report_dict[metric_key]['all'])
     
     acc_data = {k: np.array(v, dtype=np.float32) for k, v in acc_data.items()}
+    labels = list(acc_data.keys())
+    labels = ['C4REID' if x == 'CAVIAR4REID' else x for x in labels]
+    labels = ['TCentre' if x == 'TownCentre' else x for x in labels]
 
     plt.boxplot(acc_data.values())
-    plt.xticks(ticks=range(len(data)), labels=acc_data.keys(), 
+    plt.xticks(ticks=range(len(acc_data)), labels=labels, 
             rotation=70, ha='left')
-    plt.subplots_adjust(bottom=0.22)
-    plt.savefig('report_boxplot.png')
+    plt.ylabel('Accuracy')
+    plt.subplots_adjust(bottom=0.15)
+    plt.savefig(f'{dataset_name}_boxplot.png')
 
     for key in avgs:
         avgs[key] = np.array(avgs[key], dtype=np.float32)

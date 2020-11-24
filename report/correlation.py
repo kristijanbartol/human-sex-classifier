@@ -2,6 +2,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from random import sample
+from scipy.stats.stats import pearsonr
 
 
 # JSON keys.
@@ -84,17 +85,23 @@ if __name__ == '__main__':
     '''
 
     op_accs *= 100
-    print(np.max(op_openpose))
 
-    plt.plot(op_accs, op_openpose, 'r^')
-    plt.axis([0, 100, 0, 20])
+#    fit_line = np.polyfit(op_accs, op_openpose, 1)
+    fit_line = np.polyfit(op_accs, op_missing, 1)
+
+#    plt.plot(op_accs, op_openpose, 'r^')
+    plt.plot(op_accs, op_missing, 'g^')
+    plt.plot(op_accs, fit_line[0] * op_accs + fit_line[1], color='darkblue', 
+            linewidth=2)
+#    plt.axis([0, 100, 0, 20])
+    plt.axis([0, 100, 0, 6])
     plt.xlabel('Accuracy (per action)')
-    plt.ylabel('Average MPJPE (per action)')
+#    plt.ylabel('Average MPJPE (per action)')
+    plt.ylabel('Average number of missing joints (per action)')
 
-    # Create legend & Show graphic
-#    plt.legend()
-#    plt.show()
+    print(np.corrcoef(op_openpose, op_accs))
+    print(np.corrcoef(op_missing, op_accs))
 
-#    plt.subplots_adjust(bottom=0.2) # or whatever
-    plt.savefig('mpjpe-accuracy-plot.png')
+#    plt.savefig('mpjpe-accuracy-plot.png')
+    plt.savefig('missing-accuracy-plot.png')
 
