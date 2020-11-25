@@ -41,10 +41,21 @@ def process_json(json_path):
                 dtype=np.float32)
         pose_2d[:, 0] = pose_2d_tmp[::3][:15]
         pose_2d[:, 1] = pose_2d_tmp[1::3][:15]
-        pose_2d[:, 2] = np.array(1, dtype=np.float32)
+#        pose_2d[:, 2] = np.array(1, dtype=np.float32)
+        pose_2d[:, 2] = pose_2d_tmp[2::3][:15]
+
+        missing_parts = 0
+        conf = 0.
+        for kpt_idx, kpt in enumerate(pose_2d):
+            if not np.any(kpt[:2]):
+                missing_parts += 1
+            conf += kpt[2]
+#        conf = np.sum(pose_2d_tmp[2::3][:15]) / 15
+        conf /= 15
     except:
-        pass
-    return pose_2d
+        return pose_2d, None, None
+
+    return pose_2d, missing_parts, conf
     
 
 # TODO: Move to data_utils.py
@@ -106,10 +117,15 @@ def prepare_peta(rootdir, dataset_name, centered=False,
     train_X, test_X, valid_X, train_Y, valid_Y, test_Y = [], [], [], [], [], []
     subdir_dict = {}
     openpose_dir = os.path.join(rootdir, 'openpose')
-    invalid_counters = []
+    invalid_counters, missing_parts_counter, avg_confs, male_counter, female_counter =\
+            [], [], [], [], []
     last_idx = 0
     for xdir_idx, xdir_name in enumerate(sorted(os.listdir(openpose_dir))):
         invalid_counters.append(0)
+        missing_parts_counter.append(0)
+        male_counter.append(0)
+        female_counter.append(0)
+        avg_confs.append(0.)
         subdir_dict[xdir_name] = { 'X' : [], 'Y': [], 'img': [] }
         xdir = os.path.join(openpose_dir, xdir_name)
         img_dir = os.path.join(rootdir, 'imgs/', xdir_name, 'archive/')
@@ -122,10 +138,15 @@ def prepare_peta(rootdir, dataset_name, centered=False,
         gender_label_idx = get_gender_label_idx(labels[0])
         for line in labels:
             id_ = int(line.split(' ')[0].split('.')[0])
-            try:
-                gender = 0 if 'Male' in line.split(' ')[gender_label_idx] else 1
-            except:
-                gender = None
+            gender = None
+            for item_idx, item in enumerate(line.split(' ')):
+                if item == 'personalMale' or item == 'personalFemale':
+                    break
+            label = line.split(' ')[item_idx]
+            if label == 'personalMale':
+                gender = 0
+            elif label == 'personalFemale':
+                gender = 1
             id_gender_dict[id_] = gender
         
         img_ext = os.listdir(img_dir)[0].split('.')[1]
@@ -155,7 +176,7 @@ def prepare_peta(rootdir, dataset_name, centered=False,
         for idx_set_key in idxs_dict:
             for idx in idxs_dict[idx_set_key]:
                 kpt_path = os.path.join(xdir, fnames[idx])
-                pose_2d = process_json(kpt_path)
+                pose_2d, num_missing, conf = process_json(kpt_path)
                 img_size = get_img_size(img_paths[idx])
                 pose_2d[:, :2] /= img_size
 
@@ -166,9 +187,16 @@ def prepare_peta(rootdir, dataset_name, centered=False,
                 subject_id = int(fnames[idx].split('.')[0].split('_')[0])
                 gender = id_gender_dict[subject_id]
 
-                pose_2d[0] = set_missing_joints(pose_2d[0])
-#                if gender is not None and np.any(pose_2d):
-                if gender is not None and not np.all(np.isnan(pose_2d[0])):
+#                pose_2d[0] = set_missing_joints(pose_2d[0])
+                if gender is not None and np.any(pose_2d):
+#                if gender is not None and not np.all(np.isnan(pose_2d[0])):
+                    missing_parts_counter[xdir_idx] += num_missing
+                    avg_confs[xdir_idx] += conf
+                    if gender == 0:
+                        male_counter[xdir_idx] +=1
+                    else:
+                        female_counter[xdir_idx] += 1
+
                     if idx_set_key == 'train':
                         train_X.append(pose_2d)
                         train_Y.append(gender)
@@ -184,7 +212,11 @@ def prepare_peta(rootdir, dataset_name, centered=False,
                 else:
                     invalid_counters[xdir_idx] += 1
         
-        print(f'{xdir_name} ({len(fnames)-invalid_counters[xdir_idx]}/{len(fnames)})')
+        num_ok = len(fnames) - invalid_counters[xdir_idx]
+        avg_missing = missing_parts_counter[xdir_idx] / num_ok
+        avg_conf = avg_confs[xdir_idx] / num_ok
+        print(f'{xdir_name} ({num_ok}/{len(fnames)}): {avg_missing}, {avg_conf}: '
+                f'm{male_counter[xdir_idx]}, f{female_counter[xdir_idx]}')
 
     prepared_dir = os.path.join(DATASET_DIR, dataset_name)
     os.makedirs(prepared_dir, exist_ok=True)
@@ -491,6 +523,6 @@ if __name__ == '__main__':
             prepare_gender(f'../smplx-generator/data/{args.dataset}/', 
                     args.name, args.scale, args.downscale, args.centered)
     else:
-#        prepare_peta('/home/kristijan/phd/datasets/PETA/', args.name)
-        prepare_peta('/data/PETA/', args.name)
+        prepare_peta('/home/kristijan/phd/datasets/PETA/', args.name)
+#        prepare_peta('/data/PETA/', args.name)
 
